@@ -1,0 +1,101 @@
+Adding Device API
+####Device
+fetch("https://xiaozhi.me/api/agents/devices",
+{
+    "headers": {
+        "accept": "*/*",
+        "accept-language": "en-US,en;q=0.9,vi;q=0.8",
+        "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJnaXRodWJfdXNlcm5hbWUiOiJYdWFudGFtOTEiLCJ1c2VySWQiOjg0NzI3MiwidXNlcm5hbWUiOiJnbG9ieXBybzg2IiwidGVsZXBob25lIjoiIiwiZ29vZ2xlRW1haWwiOiJnbG9ieXBybzhAZ21haWwuY29tIiwicm9sZSI6ImRldmVsb3BlciIsInB1cnBvc2UiOiJsb2dpbiIsImlhdCI6MTc4NzA5ODcxNSwiZXhwIjoxNzk0ODc0NzE1fQ.Q2481LtFiTLF-ttHdnxYc8_uNzOq1Q5O_AMOqSt4vHOzG6vzqdEJYbABo9GH_nJOvfy8Mc_QyFAmgCY1buVeXg",
+        "cache-control": "no-cache",
+        "content-type": "application/json",
+        "pragma": "no-cache",
+        "priority": "u=1, i",
+        "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+    },
+    "referrer": "https://xiaozhi.me/console/agents",
+    "body": "{\"verificationCode\":\"028716\"}",
+    "method": "POST",
+    "mode": "cors",
+    "credentials": "include"
+});
+
+{
+    "success": true,
+    "data": {
+        "id": 2562180,
+        "user_id": 847272,
+        "mac_address": "80:b5:4e:c7:bc:10",
+        "created_at": "2026-08-19T00:19:46.000Z",
+        "updated_at": "2026-08-19T00:19:46.000Z",
+        "last_connected_at": null,
+        "auto_update": 1,
+        "alias": null,
+        "agent_id": 2257966,
+        "app_version": "2.1.6",
+        "board_name": "jiuchuan-s3",
+        "serial_number": "JCZN_JIUCHUANS3_B92ED44EA5D243DE",
+        "iccid": "",
+        "product_id": 149,
+        "is_auth": true,
+        "macAddress": "80:b5:4e:c7:bc:10"
+    },
+    "message": "添加设备成功",
+    "code": "ADD_DEVICE_SUCCESS"
+}
+
+####agent
+fetch("https://xiaozhi.me/api/agents?page=1&pageSize=24&summary=true",
+{
+    "headers": {
+        "accept": "*/*",
+        "accept-language": "en-US,en;q=0.9,vi;q=0.8",
+        "authorization": "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJnaXRodWJfdXNlcm5hbWUiOiJYdWFudGFtOTEiLCJ1c2VySWQiOjg0NzI3MiwidXNlcm5hbWUiOiJnbG9ieXBybzg2IiwidGVsZXBob25lIjoiIiwiZ29vZ2xlRW1haWwiOiJnbG9ieXBybzhAZ21haWwuY29tIiwicm9sZSI6ImRldmVsb3BlciIsInB1cnBvc2UiOiJsb2dpbiIsImlhdCI6MTc4NzA5ODcxNSwiZXhwIjoxNzk0ODc0NzE1fQ.Q2481LtFiTLF-ttHdnxYc8_uNzOq1Q5O_AMOqSt4vHOzG6vzqdEJYbABo9GH_nJOvfy8Mc_QyFAmgCY1buVeXg",
+        "cache-control": "no-cache",
+        "pragma": "no-cache",
+        "priority": "u=1, i",
+        "sec-ch-ua": "\"Not=A?Brand\";v=\"99\", \"Google Chrome\";v=\"151\", \"Chromium\";v=\"151\"",
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": "\"macOS\"",
+        "sec-fetch-dest": "empty",
+        "sec-fetch-mode": "cors",
+        "sec-fetch-site": "same-origin"
+    },
+    "referrer": "https://xiaozhi.me/console/agents",
+    "body": null,
+    "method": "GET",
+    "mode": "cors",
+    "credentials": "include"
+});
+
+{
+    "success": true,
+    "data": [
+        {
+            "id": 2257966,
+            "user_id": 847272,
+            "agent_name": "小十三定制款",
+            "tts_voice": "zh_female_wanwanxiaohe_moon_bigtts",
+            "llm_model": "deepseek",
+            "created_at": "2026-08-19T00:19:46.000Z",
+            "updated_at": "2026-08-19T00:19:46.000Z",
+            "agent_template_id": 288,
+            "deviceCount": 1,
+            "onlineDeviceCount": 1,
+            "source": "console",
+            "lastDevice": {
+                "id": 2562180,
+                "user_id": 847272,
+                "agent_id": 2257966,
+                "mac_address": "80:b5:4e:c7:bc:10",
+                "created_at": "2026-08-19T00:19:46.000Z",
+                "updated_at": "2026-08-19T00:19:46.000Z",
+                "last_connected_at": null,
+                "auto_update": 1,
+                "alias": null
+            }
+        },
