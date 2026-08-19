@@ -12,6 +12,16 @@ if db_url.startswith("postgres://"):
 elif db_url.startswith("postgresql://"):
     db_url = db_url.replace("postgresql://", "postgresql+pg8000://", 1)
 
+# Strip pgbouncer query parameter for pg8000 driver compatibility
+if "pgbouncer" in db_url:
+    import urllib.parse
+    parsed = urllib.parse.urlparse(db_url)
+    query_params = urllib.parse.parse_qsl(parsed.query)
+    filtered_params = [p for p in query_params if p[0] != 'pgbouncer']
+    new_query = urllib.parse.urlencode(filtered_params)
+    parsed = parsed._replace(query=new_query)
+    db_url = urllib.parse.urlunparse(parsed)
+
 connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
 
 engine = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
