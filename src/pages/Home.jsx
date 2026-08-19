@@ -24,6 +24,11 @@ export default function Home() {
   // Admin form state
   const [adminToken, setAdminToken] = useState('');
 
+  // Speaker TTS / Guidance states
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeakerPulsing, setIsSpeakerPulsing] = useState(false);
+  const [autoSpeakTimerId, setAutoSpeakTimerId] = useState(null);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
@@ -35,12 +40,45 @@ export default function Home() {
       const utterance = new SpeechSynthesisUtterance("Vui lòng nhập sáu chữ số hiển thị trên màn hình của loa để kích hoạt thiết bị.");
       utterance.lang = 'vi-VN';
       utterance.rate = 1.05;
+      utterance.onend = () => {
+        setIsSpeaking(false);
+        setIsSpeakerPulsing(false);
+      };
+      utterance.onerror = () => {
+        setIsSpeaking(false);
+        setIsSpeakerPulsing(false);
+      };
+      setIsSpeaking(true);
       window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const stopGuidance = () => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeaking(false);
+    setIsSpeakerPulsing(false);
+  };
+
+  const handleSpeakerClick = () => {
+    if (isSpeaking) {
+      stopGuidance();
+    } else {
+      speakGuidance();
     }
   };
 
   const handleDigitChange = (index, value) => {
     if (value && !/^\d$/.test(value)) return;
+    
+    // Clear auto-speak timer and stop pulsing if user starts typing
+    if (autoSpeakTimerId) {
+      clearTimeout(autoSpeakTimerId);
+      setAutoSpeakTimerId(null);
+    }
+    setIsSpeakerPulsing(false);
+
     const newDigits = [...activationDigits];
     newDigits[index] = value;
     setActivationDigits(newDigits);
@@ -51,6 +89,12 @@ export default function Home() {
   };
 
   const handleDigitKeyDown = (index, e) => {
+    if (autoSpeakTimerId) {
+      clearTimeout(autoSpeakTimerId);
+      setAutoSpeakTimerId(null);
+    }
+    setIsSpeakerPulsing(false);
+
     if (e.key === 'Backspace' && !activationDigits[index] && index > 0) {
       const prevInput = document.getElementById(`digit-input-${index - 1}`);
       if (prevInput) prevInput.focus();
@@ -59,6 +103,12 @@ export default function Home() {
 
   const handleDigitPaste = (e) => {
     e.preventDefault();
+    if (autoSpeakTimerId) {
+      clearTimeout(autoSpeakTimerId);
+      setAutoSpeakTimerId(null);
+    }
+    setIsSpeakerPulsing(false);
+
     const pasted = e.clipboardData.getData('text').trim();
     if (/^\d{6}$/.test(pasted)) {
       setActivationDigits(pasted.split(''));
@@ -70,10 +120,30 @@ export default function Home() {
   useEffect(() => {
     if (showActivationModal) {
       setActivationDigits(['', '', '', '', '', '']);
-      const timer = setTimeout(() => {
+      setIsSpeaking(false);
+      setIsSpeakerPulsing(false);
+      
+      // 1. Focus the first input box
+      const focusTimer = setTimeout(() => {
+        const firstInput = document.getElementById('digit-input-0');
+        if (firstInput) firstInput.focus();
+      }, 150);
+
+      // 2. Start the 9-second inactivity timer for auto voice alert
+      const speakTimer = setTimeout(() => {
+        setIsSpeakerPulsing(true);
         speakGuidance();
-      }, 400);
-      return () => clearTimeout(timer);
+      }, 9000);
+      
+      setAutoSpeakTimerId(speakTimer);
+
+      return () => {
+        clearTimeout(focusTimer);
+        clearTimeout(speakTimer);
+        if ('speechSynthesis' in window) {
+          window.speechSynthesis.cancel();
+        }
+      };
     }
   }, [showActivationModal]);
 
@@ -249,6 +319,34 @@ export default function Home() {
       overflow: 'hidden',
       transition: 'all 0.3s ease'
     }}>
+      <style>{`
+        @keyframes pulseGlow {
+          0% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+          }
+          70% {
+            transform: scale(1.1);
+            box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+          }
+          100% {
+            transform: scale(1);
+            box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+          }
+        }
+        @keyframes scanVertical {
+          0% { top: 0%; }
+          50% { top: 100%; }
+          100% { top: 0%; }
+        }
+        .spin {
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       
       {/* Background glowing effects for Kid/AI theme */}
       <div style={{
@@ -573,11 +671,11 @@ export default function Home() {
                 🔔 Nhập đúng 6 chữ số đang hiển thị trên màn hình của loa để thực hiện liên kết kích hoạt.
               </span>
               <button 
-                onClick={speakGuidance}
+                onClick={handleSpeakerClick}
                 type="button"
-                title="Đọc to thông báo"
+                title={isSpeaking ? "Ngưng đọc hướng dẫn" : "Đọc to hướng dẫn"}
                 style={{
-                  background: 'var(--primary)',
+                  background: isSpeaking ? '#ef4444' : 'var(--primary)',
                   color: 'white',
                   border: 'none',
                   borderRadius: '50%',
@@ -588,11 +686,10 @@ export default function Home() {
                   justifyContent: 'center',
                   cursor: 'pointer',
                   boxShadow: '0 2px 8px var(--primary-glow)',
-                  transition: 'transform 0.15s ease',
-                  flexShrink: 0
+                  transition: 'all 0.3s ease',
+                  flexShrink: 0,
+                  animation: isSpeakerPulsing ? 'pulseGlow 1.2s infinite alternate' : 'none'
                 }}
-                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'}
-                onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
               >
                 <Volume2 size={16} />
               </button>
@@ -727,10 +824,10 @@ export default function Home() {
               
               {/* Real Camera Viewfinder */}
               <div style={{
-                width: '280px',
-                height: '240px',
+                width: '250px',
+                height: '250px',
                 border: '2px solid var(--border-color)',
-                borderRadius: '16px',
+                borderRadius: '24px',
                 position: 'relative',
                 display: 'flex',
                 justifyContent: 'center',
