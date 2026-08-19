@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Cpu, User, Shield, Camera, Link, Moon, Sun, ArrowRight, Sparkles, RefreshCw, Key, Hash, Sliders, Volume2 } from 'lucide-react';
+import { Html5Qrcode } from 'html5-qrcode';
 
 
 export default function Home() {
@@ -171,14 +172,70 @@ export default function Home() {
     }
   };
 
-  const startScannerSimulation = () => {
-    setScanning(true);
-    setTimeout(() => {
-      setScanning(false);
-      // Automatically redirect to a mock device
-      navigate('/role?mac=VI:01:23:45:67:89');
-    }, 2500); // 2.5s scanning effect
-  };
+  useEffect(() => {
+    let html5QrcodeScanner = null;
+
+    if (showConfigModal && scanning) {
+      const containerId = "qr-reader-container";
+      
+      const timer = setTimeout(() => {
+        const element = document.getElementById(containerId);
+        if (!element) return;
+
+        html5QrcodeScanner = new Html5Qrcode(containerId);
+        html5QrcodeScanner.start(
+          { facingMode: "environment" },
+          {
+            fps: 10,
+            qrbox: (width, height) => {
+              const size = Math.min(width, height) * 0.75;
+              return { width: size, height: size };
+            }
+          },
+          (decodedText, decodedResult) => {
+            html5QrcodeScanner.stop().then(() => {
+              let mac = decodedText.trim();
+              
+              if (decodedText.includes('mac=')) {
+                try {
+                  const url = new URL(decodedText);
+                  mac = url.searchParams.get('mac') || decodedText;
+                } catch (e) {
+                  const match = decodedText.match(/mac=([^&]+)/);
+                  if (match) mac = match[1];
+                }
+              } else if (decodedText.includes('/role?mac=')) {
+                const match = decodedText.match(/mac=([^&]+)/);
+                if (match) mac = match[1];
+              }
+
+              navigate(`/role?mac=${encodeURIComponent(mac)}`);
+              setShowConfigModal(false);
+              setScanning(false);
+            }).catch(err => {
+              console.error("Failed to stop scanner", err);
+            });
+          },
+          (errorMessage) => {
+            // ignore scan errors
+          }
+        ).catch(err => {
+          console.error("Error starting camera", err);
+          alert("Không thể truy cập camera. Vui lòng cấp quyền camera cho trình duyệt hoặc tự nhập thông số thủ công bên dưới.");
+          setScanning(false);
+        });
+      }, 300);
+
+      return () => {
+        clearTimeout(timer);
+        if (html5QrcodeScanner) {
+          if (html5QrcodeScanner.isScanning) {
+            html5QrcodeScanner.stop().catch(err => console.error("Error stopping scanner on unmount", err));
+          }
+        }
+      };
+    }
+  }, [scanning, showConfigModal]);
 
   return (
     <div style={{
@@ -668,12 +725,12 @@ export default function Home() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
               
-              {/* Simulated Camera Viewfinder */}
+              {/* Real Camera Viewfinder */}
               <div style={{
-                width: '200px',
-                height: '200px',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderRadius: '24px',
+                width: '280px',
+                height: '240px',
+                border: '2px solid var(--border-color)',
+                borderRadius: '16px',
                 position: 'relative',
                 display: 'flex',
                 justifyContent: 'center',
@@ -681,42 +738,47 @@ export default function Home() {
                 background: 'rgba(0,0,0,0.4)',
                 overflow: 'hidden'
               }}>
-                <div style={{ position: 'absolute', top: '12px', left: '12px', width: '15px', height: '15px', borderLeft: '3px solid #6366f1', borderTop: '3px solid #6366f1' }}></div>
-                <div style={{ position: 'absolute', top: '12px', right: '12px', width: '15px', height: '15px', borderRight: '3px solid #6366f1', borderTop: '3px solid #6366f1' }}></div>
-                <div style={{ position: 'absolute', bottom: '12px', left: '12px', width: '15px', height: '15px', borderLeft: '3px solid #6366f1', borderBottom: '3px solid #6366f1' }}></div>
-                <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '15px', height: '15px', borderRight: '3px solid #6366f1', borderBottom: '3px solid #6366f1' }}></div>
+                <div style={{ position: 'absolute', top: '12px', left: '12px', width: '15px', height: '15px', borderLeft: '3px solid #6366f1', borderTop: '3px solid #6366f1', zIndex: 5 }}></div>
+                <div style={{ position: 'absolute', top: '12px', right: '12px', width: '15px', height: '15px', borderRight: '3px solid #6366f1', borderTop: '3px solid #6366f1', zIndex: 5 }}></div>
+                <div style={{ position: 'absolute', bottom: '12px', left: '12px', width: '15px', height: '15px', borderLeft: '3px solid #6366f1', borderBottom: '3px solid #6366f1', zIndex: 5 }}></div>
+                <div style={{ position: 'absolute', bottom: '12px', right: '12px', width: '15px', height: '15px', borderRight: '3px solid #6366f1', borderBottom: '3px solid #6366f1', zIndex: 5 }}></div>
                 
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '3px',
-                  background: 'linear-gradient(to right, transparent, #6366f1, transparent)',
-                  boxShadow: '0 0 10px #6366f1',
-                  animation: 'scanVertical 2s linear infinite'
-                }}></div>
+                {scanning && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '3px',
+                    background: 'linear-gradient(to right, transparent, #6366f1, transparent)',
+                    boxShadow: '0 0 10px #6366f1',
+                    animation: 'scanVertical 2s linear infinite',
+                    zIndex: 4
+                  }}></div>
+                )}
 
                 {scanning ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <RefreshCw className="spin" size={24} style={{ color: '#6366f1', animation: 'spin 1.5s linear infinite' }} />
-                    <span style={{ fontSize: '0.72rem', color: '#6366f1', fontWeight: 600 }}>Quét...</span>
-                  </div>
+                  <div id="qr-reader-container" style={{ width: '100%', height: '100%', objectFit: 'cover' }}></div>
                 ) : (
                   <button 
-                    onClick={startScannerSimulation}
+                    onClick={() => setScanning(true)}
                     style={{
-                      background: 'rgba(99, 102, 241, 0.2)',
-                      border: '1px solid #6366f1',
-                      color: '#6366f1',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      fontSize: '0.75rem',
-                      fontWeight: 600,
-                      cursor: 'pointer'
+                      background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.2))',
+                      border: '1px solid var(--primary)',
+                      color: 'var(--text-primary)',
+                      padding: '12px 20px',
+                      borderRadius: '12px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.15)'
                     }}
                   >
-                    Simulate QR Scan
+                    <Camera size={16} style={{ color: 'var(--primary)' }} />
+                    Bật Camera quét mã
                   </button>
                 )}
               </div>
@@ -766,6 +828,7 @@ export default function Home() {
                   onClick={() => {
                     setShowConfigModal(false);
                     setConfigInput('');
+                    setScanning(false);
                   }}
                   style={{
                     width: '100%',
