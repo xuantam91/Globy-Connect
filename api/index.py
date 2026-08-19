@@ -278,26 +278,10 @@ def get_device_by_mac(mac: str = Query(...), db: Session = Depends(get_db)):
         )
     )
     if not device:
-        # Create a mock device on the fly for scanning demo if not exists
-        # This guarantees QR demo works even if the DB is empty
-        acc = db.scalar(select(XiaozhiAccount))
-        if not acc:
-            acc = XiaozhiAccount(label="Mock Demo Token", bearer_token="mock")
-            db.add(acc)
-            db.commit()
-            db.refresh(acc)
-            
-        device = Device(
-            external_id=f"mock-{mac.replace(':', '')}",
-            name=f"Loa Demo {mac[-5:]}",
-            status="online",
-            mac_address=mac,
-            current_language="en",
-            account_id=acc.id
-        )
-        db.add(device)
-        db.commit()
-        db.refresh(device)
+        return {
+            "success": False,
+            "message": "Không tìm thấy loa có địa chỉ MAC này trên hệ thống. Vui lòng kiểm tra lại thiết bị hoặc tiến hành đồng bộ tài khoản Xiaozhi."
+        }
         
     return {
         "success": True,

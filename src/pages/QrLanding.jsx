@@ -303,6 +303,38 @@ export default function QrLanding() {
     );
   }
 
+  if (!deviceInfo) {
+    return (
+      <div className="animated-fade-in" style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '32px', textAlign: 'center' }}>
+        <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '2px solid #ef4444', padding: '20px', borderRadius: '50%', marginBottom: '20px' }}>
+          <Sliders size={56} style={{ stroke: '#ef4444' }} />
+        </div>
+        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '12px' }}>Không Tìm Thấy Loa ⚠️</h2>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '28px', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '320px', margin: '0 auto 28px' }}>
+          Loa có địa chỉ MAC <strong>{mac}</strong> chưa được đăng ký hoặc đồng bộ trên hệ thống Globy AI Connect.
+          <br /><br />
+          Vui lòng kiểm tra lại thiết bị hoặc truy cập trang quản trị để đồng bộ tài khoản Xiaozhi trước.
+        </p>
+        <button
+          onClick={() => navigate('/')}
+          style={{
+            background: 'linear-gradient(to right, #6366f1, #4f46e5)',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '10px',
+            fontWeight: 700,
+            fontSize: '0.88rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 12px rgba(99,102,241,0.2)'
+          }}
+        >
+          Quay lại trang chủ
+        </button>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="animated-fade-in" style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '32px', textAlign: 'center' }}>
