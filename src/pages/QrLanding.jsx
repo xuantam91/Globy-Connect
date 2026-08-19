@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { Globe, Mic, CheckCircle, RefreshCw, Cpu, Volume2, Sliders, Sun, Moon, ArrowLeft, Heart, Home, Sparkles } from 'lucide-react';
+import { Globe, Mic, CheckCircle, RefreshCw, Cpu, Volume2, Sliders, Sun, Moon, ArrowLeft, Heart, Home, Sparkles, AlertTriangle } from 'lucide-react';
 
 // Group presets by base name (strip Nam/Nữ suffix)
 function groupPresets(presets) {
@@ -307,7 +307,7 @@ export default function QrLanding() {
     return (
       <div className="animated-fade-in" style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '32px', textAlign: 'center' }}>
         <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '2px solid #ef4444', padding: '20px', borderRadius: '50%', marginBottom: '20px' }}>
-          <Sliders size={56} style={{ stroke: '#ef4444' }} />
+          <AlertTriangle size={56} style={{ stroke: '#ef4444' }} />
         </div>
         <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '12px' }}>Không Tìm Thấy Loa ⚠️</h2>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '28px', fontSize: '0.9rem', lineHeight: 1.6, maxWidth: '320px', margin: '0 auto 28px' }}>
