@@ -105,26 +105,26 @@ class XiaozhiService:
                 if not agent_id:
                     return None
                 
-                # Fetch devices
                 devices_url = f"https://xiaozhi.me/api/agents/{agent_id}/devices"
                 config_url = f"https://xiaozhi.me/api/agents/{agent_id}/config"
                 
-                device_payload = None
-                config_payload = None
-                
-                try:
-                    dev_res = await client.get(devices_url, headers=headers)
-                    if dev_res.status_code == 200:
-                        device_payload = dev_res.json()
-                except Exception as e:
-                    logger.warning(f"Failed to fetch devices for agent {agent_id}: {e}")
+                async def get_devices():
+                    try:
+                        res = await client.get(devices_url, headers=headers)
+                        return res.json() if res.status_code == 200 else None
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch devices for agent {agent_id}: {e}")
+                        return None
+                        
+                async def get_config():
+                    try:
+                        res = await client.get(config_url, headers=headers)
+                        return res.json() if res.status_code == 200 else None
+                    except Exception as e:
+                        logger.warning(f"Failed to fetch config for agent {agent_id}: {e}")
+                        return None
 
-                try:
-                    conf_res = await client.get(config_url, headers=headers)
-                    if conf_res.status_code == 200:
-                        config_payload = conf_res.json()
-                except Exception as e:
-                    logger.warning(f"Failed to fetch config for agent {agent_id}: {e}")
+                device_payload, config_payload = await asyncio.gather(get_devices(), get_config())
                     
                 return {
                     "agent": agent,
@@ -256,7 +256,7 @@ class XiaozhiService:
         return synced_count
 
     async def sync_devices_to_supabase(self, devices: list) -> bool:
-        """Upserts a list of devices to Supabase PostgREST API in bulk."""
+        """Upserts a list of devices to Supabase PostgREST API in bulk in the background."""
         if not devices:
             return True
             
@@ -275,14 +275,6 @@ class XiaozhiService:
         if not sb_url or not sb_key:
             return False
             
-        endpoint = f"{sb_url}/rest/v1/devices"
-        headers = {
-            "apikey": sb_key,
-            "Authorization": f"Bearer {sb_key}",
-            "Content-Type": "application/json",
-            "Prefer": "resolution=merge-duplicates"
-        }
-        
         payload = []
         for device in devices:
             payload.append({
@@ -303,18 +295,25 @@ class XiaozhiService:
                 "last_seen_at": device.last_seen_at.isoformat() if device.last_seen_at else None
             })
             
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            try:
-                res = await client.post(endpoint, json=payload, headers=headers)
-                if res.status_code in (200, 201):
-                    logger.info(f"Successfully synced {len(devices)} devices to Supabase in bulk.")
-                    return True
-                else:
-                    logger.error(f"Supabase bulk sync failed with status {res.status_code}: {res.text}")
-                    return False
-            except Exception as e:
-                logger.error(f"Error bulk syncing devices to Supabase: {e}")
-                return False
+        # Fire-and-forget the actual HTTP call to Supabase in a background task
+        async def do_supabase_post(url, key, data):
+            endpoint = f"{url}/rest/v1/devices"
+            headers = {
+                "apikey": key,
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates"
+            }
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                try:
+                    res = await client.post(endpoint, json=data, headers=headers)
+                    if res.status_code not in (200, 201):
+                        logger.error(f"Supabase bulk sync failed with status {res.status_code}: {res.text}")
+                except Exception as e:
+                    logger.error(f"Error bulk syncing devices to Supabase: {e}")
+                    
+        asyncio.create_task(do_supabase_post(sb_url, sb_key, payload))
+        return True
 
     async def update_device_config(self, device: Device, llm_model: str, language: str, tts_voice: str, tts_speech_speed: str, asr_speed: str, tts_pitch: int, mcp_endpoints: list, character: str) -> bool:
         """Saves config to DB and uploads to Xiaozhi API."""
