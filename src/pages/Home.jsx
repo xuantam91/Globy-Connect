@@ -264,22 +264,32 @@ export default function Home() {
           },
           (decodedText, decodedResult) => {
             html5QrcodeScanner.stop().then(() => {
-              let mac = decodedText.trim();
+              const rawText = decodedText.trim();
+              let mac = rawText;
               
-              if (decodedText.includes('mac=')) {
+              if (rawText.includes('mac=')) {
                 try {
-                  const url = new URL(decodedText);
-                  mac = url.searchParams.get('mac') || decodedText;
+                  let urlString = rawText;
+                  if (!/^https?:\/\//i.test(urlString)) {
+                    urlString = "http://" + urlString;
+                  }
+                  const url = new URL(urlString);
+                  mac = url.searchParams.get('mac') || rawText;
                 } catch (e) {
-                  const match = decodedText.match(/mac=([^&]+)/);
+                  const match = rawText.match(/mac=([^&]+)/);
                   if (match) mac = match[1];
                 }
-              } else if (decodedText.includes('/role?mac=')) {
-                const match = decodedText.match(/mac=([^&]+)/);
-                if (match) mac = match[1];
+              } else {
+                const urlMatch = rawText.match(/\/role\/([a-fA-F0-9:-]+)/);
+                if (urlMatch) {
+                  mac = urlMatch[1];
+                }
               }
 
-              navigate(`/role?mac=${encodeURIComponent(mac)}`);
+              // Clean MAC address (remove colons, dashes, spaces)
+              const cleanMac = mac.replace(/[:-\s]/g, '').toLowerCase();
+
+              navigate(`/role?mac=${encodeURIComponent(cleanMac)}`);
               setShowConfigModal(false);
               setScanning(false);
             }).catch(err => {

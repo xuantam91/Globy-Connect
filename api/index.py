@@ -1007,159 +1007,188 @@ async def activate_device(act: DeviceActivate, db: Session = Depends(get_db)):
         tts_pitch = 0
         mcp_endpoints = ["2", "104"]
 
-    # 1. Try to activate via the real Xiaozhi API if there is an active account
+    # 1. Require an active account
     active_accounts = db.scalars(
         select(XiaozhiAccount).where(
-            XiaozhiAccount.is_active == True,
-            ~XiaozhiAccount.bearer_token.like("mock%")
+            XiaozhiAccount.is_active == True
         )
     ).all()
 
-    if active_accounts:
-        account = active_accounts[0]
-        headers = {
-            "Authorization": f"Bearer {account.bearer_token.strip()}",
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "User-Agent": "Mozilla/5.0"
+    if not active_accounts:
+        raise HTTPException(
+            status_code=400,
+            detail="Chưa có tài khoản Xiaozhi nào được thêm hoặc kích hoạt. Vui lòng thêm tài khoản quản trị trước."
+        )
+
+    account = active_accounts[0]
+
+    # 2. Check if it's a mock token for testing/demo purposes
+    if account.bearer_token == "mock" or account.bearer_token.startswith("mock_"):
+        mac_suffix = f"{random.randint(16, 255):02X}"
+        new_mac = f"AA:BB:CC:DD:EE:{mac_suffix}"
+        new_id = f"agent-act-{random.randint(1000, 9999)}"
+        
+        existing = db.scalar(select(Device).where(Device.mac_address == new_mac))
+        if existing:
+            new_mac = f"AA:BB:CC:DD:EE:{random.randint(16, 255):02X}"
+        
+        db_device = Device(
+            external_id=new_id,
+            name=device_name,
+            status="online",
+            mac_address=new_mac,
+            current_language=lang,
+            current_voice=voice,
+            ai_prompt_template=character,
+            asr_speed=asr_speed,
+            tts_speech_speed=tts_speech_speed,
+            tts_pitch=tts_pitch,
+            mcp_endpoints_json=json.dumps(mcp_endpoints),
+            board_name="jiuchuan-s3",
+            serial_number=f"MOCK_SERIAL_{random.randint(100000, 999999)}",
+            is_auth=True,
+            app_version="2.1.6",
+            last_seen_at=func.now()
+        )
+        db.add(db_device)
+        db.commit()
+        db.refresh(db_device)
+        await sync_device_to_supabase(db_device, db)
+        
+        return {
+            "success": True, 
+            "mac_address": new_mac, 
+            "name": db_device.name,
+            "message": f"Kích hoạt thiết bị {db_device.name} (Giả lập) thành công!"
         }
-        
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            try:
-                res = await client.post(
-                    "https://xiaozhi.me/api/agents/devices",
-                    json={"verificationCode": code},
-                    headers=headers
-                )
-                
-                if res.status_code == 200:
-                    res_data = res.json()
-                    if res_data.get("success") or res_data.get("code") == "ADD_DEVICE_SUCCESS":
-                        device_info = res_data.get("data", {})
-                        real_mac = device_info.get("mac_address") or device_info.get("macAddress")
-                        real_id = str(device_info.get("id"))
-                        agent_id = str(device_info.get("agent_id") or "")
-                        board_name = device_info.get("board_name")
-                        serial_number = device_info.get("serial_number")
-                        is_auth = device_info.get("is_auth", False)
-                        app_version = device_info.get("app_version")
 
-                        # Save device to DB
-                        db_device = db.scalar(select(Device).where(Device.external_id == real_id))
-                        if not db_device:
-                            db_device = Device(external_id=real_id)
-                            db.add(db_device)
-                        
-                        db_device.name = device_name
-                        db_device.mac_address = real_mac
-                        db_device.status = "online"
-                        db_device.account_id = account.id
-                        db_device.current_language = lang
-                        db_device.current_voice = voice
-                        db_device.ai_prompt_template = character
-                        db_device.asr_speed = asr_speed
-                        db_device.tts_speech_speed = tts_speech_speed
-                        db_device.tts_pitch = tts_pitch
-                        db_device.mcp_endpoints_json = json.dumps(mcp_endpoints)
-                        
-                        # Hardware metadata fields
-                        db_device.board_name = board_name
-                        db_device.serial_number = serial_number
-                        db_device.is_auth = is_auth
-                        db_device.app_version = app_version
-                        db_device.last_seen_at = func.now()
-                        
-                        db.commit()
-                        db.refresh(db_device)
-                        await sync_device_to_supabase(db_device, db)
-
-                        # Sync preset configuration to Xiaozhi
-                        if agent_id:
-                            config_url = f"https://xiaozhi.me/api/agents/{agent_id}/config"
-                            
-                            model_mapping = {
-                                "xz-lite": "xz-lite",
-                                "qwen": "qwen",
-                                "deepseek": "deepseek",
-                                "doubao": "doubao",
-                                "gpt-5": "gpt-5"
-                            }
-                            mapped_model = model_mapping.get(llm_model, "qwen")
-
-                            config_payload = {
-                                "agent_name": device_name,
-                                "llm_model": mapped_model,
-                                "tts_voice": voice,
-                                "tts_speech_speed": tts_speech_speed,
-                                "tts_pitch": tts_pitch,
-                                "asr_speed": asr_speed,
-                                "language": lang,
-                                "character": character,
-                                "memory_type": "LONG_TERM",
-                                "mcp_endpoints": mcp_endpoints,
-                                "knowledge_base_ids": []
-                            }
-                            try:
-                                await client.post(config_url, json=config_payload, headers=headers)
-                            except Exception as config_err:
-                                logger.error(f"Lỗi đẩy cấu hình mặc định lên Xiaozhi: {config_err}")
-
-                        return {
-                            "success": True, 
-                            "mac_address": real_mac, 
-                            "name": device_name,
-                            "message": f"Kích hoạt thiết bị {device_name} trên Xiaozhi thành công!"
-                        }
-                    else:
-                        raise HTTPException(
-                            status_code=400, 
-                            detail=res_data.get("message") or "Kích hoạt thất bại từ máy chủ Xiaozhi."
-                        )
-            except HTTPException:
-                raise
-            except Exception as real_err:
-                logger.error(f"Lỗi kích hoạt thật: {real_err}. Chuyển sang luồng giả lập.")
-
-    # 2. Mock Fallback (when no real accounts or call failed)
-    mac_suffix = f"{random.randint(16, 255):02X}"
-    new_mac = f"AA:BB:CC:DD:EE:{mac_suffix}"
-    new_id = f"agent-act-{random.randint(1000, 9999)}"
-    
-    existing = db.scalar(select(Device).where(Device.mac_address == new_mac))
-    if existing:
-        new_mac = f"AA:BB:CC:DD:EE:{random.randint(16, 255):02X}"
-    
-    # Create active device in local DB (mock)
-    db_device = Device(
-        external_id=new_id,
-        name=device_name,
-        status="online",
-        mac_address=new_mac,
-        current_language=lang,
-        current_voice=voice,
-        ai_prompt_template=character,
-        asr_speed=asr_speed,
-        tts_speech_speed=tts_speech_speed,
-        tts_pitch=tts_pitch,
-        mcp_endpoints_json=json.dumps(mcp_endpoints),
-        
-        # Hardware metadata mock fields
-        board_name="jiuchuan-s3",
-        serial_number=f"MOCK_SERIAL_{random.randint(100000, 999999)}",
-        is_auth=True,
-        app_version="2.1.6",
-        last_seen_at=func.now()
-    )
-    db.add(db_device)
-    db.commit()
-    db.refresh(db_device)
-    await sync_device_to_supabase(db_device, db)
-    
-    return {
-        "success": True, 
-        "mac_address": new_mac, 
-        "name": db_device.name,
-        "message": f"Kích hoạt thiết bị {db_device.name} (Giả lập) thành công!"
+    # 3. Call the real Xiaozhi API for activation
+    headers = {
+        "Authorization": f"Bearer {account.bearer_token.strip()}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0"
     }
+    
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            res = await client.post(
+                "https://xiaozhi.me/api/agents/devices",
+                json={"verificationCode": code},
+                headers=headers
+            )
+            
+            if res.status_code == 200:
+                res_data = res.json()
+                if res_data.get("success") or res_data.get("code") == "ADD_DEVICE_SUCCESS":
+                    device_info = res_data.get("data", {})
+                    real_mac = device_info.get("mac_address") or device_info.get("macAddress")
+                    real_id = str(device_info.get("id"))
+                    agent_id = str(device_info.get("agent_id") or "")
+                    board_name = device_info.get("board_name")
+                    serial_number = device_info.get("serial_number")
+                    is_auth = device_info.get("is_auth", False)
+                    app_version = device_info.get("app_version")
+
+                    if not real_mac or not real_id:
+                        raise HTTPException(
+                            status_code=400,
+                            detail="Kích hoạt thành công nhưng phản hồi từ Xiaozhi thiếu thông tin thiết bị (MAC address hoặc ID)."
+                        )
+
+                    # Save device to DB
+                    db_device = db.scalar(select(Device).where(Device.external_id == real_id))
+                    if not db_device:
+                        db_device = Device(external_id=real_id)
+                        db.add(db_device)
+                    
+                    db_device.name = device_name
+                    db_device.mac_address = real_mac
+                    db_device.status = "online"
+                    db_device.account_id = account.id
+                    db_device.current_language = lang
+                    db_device.current_voice = voice
+                    db_device.ai_prompt_template = character
+                    db_device.asr_speed = asr_speed
+                    db_device.tts_speech_speed = tts_speech_speed
+                    db_device.tts_pitch = tts_pitch
+                    db_device.mcp_endpoints_json = json.dumps(mcp_endpoints)
+                    
+                    # Hardware metadata fields
+                    db_device.board_name = board_name
+                    db_device.serial_number = serial_number
+                    db_device.is_auth = is_auth
+                    db_device.app_version = app_version
+                    db_device.last_seen_at = func.now()
+                    
+                    db.commit()
+                    db.refresh(db_device)
+                    await sync_device_to_supabase(db_device, db)
+
+                    # Sync preset configuration to Xiaozhi
+                    if agent_id:
+                        config_url = f"https://xiaozhi.me/api/agents/{agent_id}/config"
+                        
+                        model_mapping = {
+                            "xz-lite": "xz-lite",
+                            "qwen": "qwen",
+                            "deepseek": "deepseek",
+                            "doubao": "doubao",
+                            "gpt-5": "gpt-5"
+                        }
+                        mapped_model = model_mapping.get(llm_model, "qwen")
+
+                        config_payload = {
+                            "agent_name": device_name,
+                            "llm_model": mapped_model,
+                            "tts_voice": voice,
+                            "tts_speech_speed": tts_speech_speed,
+                            "tts_pitch": tts_pitch,
+                            "asr_speed": asr_speed,
+                            "language": lang,
+                            "character": character,
+                            "memory_type": "LONG_TERM",
+                            "mcp_endpoints": mcp_endpoints,
+                            "knowledge_base_ids": []
+                        }
+                        try:
+                            await client.post(config_url, json=config_payload, headers=headers)
+                        except Exception as config_err:
+                            logger.error(f"Lỗi đẩy cấu hình mặc định lên Xiaozhi: {config_err}")
+
+                    return {
+                        "success": True, 
+                        "mac_address": real_mac, 
+                        "name": device_name,
+                        "message": f"Kích hoạt thiết bị {device_name} trên Xiaozhi thành công!"
+                    }
+                else:
+                    msg = res_data.get("message") or ""
+                    if "验证码" in msg or res_data.get("code") == "INVALID_VERIFICATION_CODE":
+                        detail_msg = "Mã kích hoạt không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại mã trên loa."
+                    else:
+                        detail_msg = f"Kích hoạt thất bại: {msg}" if msg else "Kích hoạt thất bại từ máy chủ Xiaozhi."
+                    raise HTTPException(status_code=400, detail=detail_msg)
+            else:
+                try:
+                    res_data = res.json()
+                    msg = res_data.get("message") or ""
+                    if "验证码" in msg or res_data.get("code") == "INVALID_VERIFICATION_CODE":
+                        detail_msg = "Mã kích hoạt không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại mã trên loa."
+                    else:
+                        detail_msg = f"Lỗi từ máy chủ Xiaozhi: {msg}" if msg else f"Lỗi máy chủ Xiaozhi (Status: {res.status_code})"
+                except Exception:
+                    detail_msg = f"Lỗi máy chủ Xiaozhi (Status: {res.status_code})"
+                
+                raise HTTPException(status_code=400, detail=detail_msg)
+                
+        except HTTPException:
+            raise
+        except Exception as real_err:
+            logger.error(f"Lỗi kích hoạt thật: {real_err}")
+            raise HTTPException(
+                status_code=502,
+                detail=f"Không thể kết nối đến máy chủ Xiaozhi để kích hoạt: {str(real_err)}"
+            )
 
 

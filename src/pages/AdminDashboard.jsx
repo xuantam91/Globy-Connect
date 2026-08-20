@@ -721,11 +721,8 @@ export default function AdminDashboard() {
   };
 
   const getQRLink = (mac) => {
-    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocal) {
-      return `${window.location.origin}/#/role?mac=${encodeURIComponent(mac || '')}`;
-    }
-    return `https://globyai.online/role?mac=${encodeURIComponent(mac || '')}`;
+    const cleanMac = (mac || '').replace(/[:-\s]/g, '').toLowerCase();
+    return `${window.location.origin}/role?mac=${cleanMac}`;
   };
 
   const speedOptions = ['slow', 'normal', 'fast'];
