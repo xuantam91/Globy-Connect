@@ -123,40 +123,65 @@ class XiaozhiService:
         if not all_agents:
             return 0
 
-        # 2. Fetch Devices Details in Parallel (only for agents with bound devices)
-        sem = asyncio.Semaphore(45)
-        agent_device_data = {}
-
-        async def fetch_devices_for_agent(agent):
-            agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
-            if not agent_id:
-                return
-            
-            # Only fetch if deviceCount > 0 or lastDevice is present
-            has_device = (agent.get("deviceCount") or 0) > 0 or agent.get("lastDevice") is not None
-            if not has_device:
-                return
-
-            async with sem:
-                url = f"https://xiaozhi.me/api/agents/{agent_id}/devices"
-                try:
-                    res = await client.get(url, headers=headers, timeout=8.0)
-                    if res.status_code == 200:
-                        agent_device_data[agent_id] = res.json()
-                except Exception as ex:
-                    logger.warning(f"Failed to fetch devices for agent {agent_id}: {ex}")
-
-        tasks = [fetch_devices_for_agent(agent) for agent in all_agents]
-        await asyncio.gather(*tasks)
-
-        # 3. Batch query all existing devices for this account to optimize SQLite queries
+        # 2. Batch query all existing devices for this account to optimize SQLite and cache checks
         existing_devices = {
             d.external_id: d for d in self.db.scalars(
                 select(Device).where(Device.account_id == account.id)
             ).all()
         }
 
-        # 4. Update Database
+        # 3. Determine which agents need their device hardware details fetched from Xiaozhi
+        # We only fetch if the device is not in our database, or its board_name/app_version is missing/N/A
+        agents_needing_fetch = []
+        for agent in all_agents:
+            agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
+            if not agent_id:
+                continue
+            
+            # Check if agent has bound devices
+            has_device = (agent.get("deviceCount") or 0) > 0 or agent.get("lastDevice") is not None
+            if not has_device:
+                continue
+
+            # Resolve external device ID
+            dev_info = agent.get("lastDevice")
+            if dev_info and isinstance(dev_info, dict):
+                raw_device_id = str(dev_info.get("id") or dev_info.get("deviceId") or dev_info.get("device_id") or f"dev-{agent_id}")
+            else:
+                raw_device_id = f"agent-{agent_id}"
+
+            db_device = existing_devices.get(raw_device_id)
+            if (not db_device or 
+                not db_device.board_name or db_device.board_name in ("N/A", "") or 
+                not db_device.app_version or db_device.app_version in ("N/A", "")):
+                agents_needing_fetch.append(agent)
+
+        # 4. Fetch Devices Details in Parallel with a limit (incremental updates)
+        # To avoid overloading Xiaozhi (HTTP 429/500/504) and Vercel 10s timeout, limit fetches to 80 per sync session
+        MAX_FETCH_PER_RUN = 80
+        agents_to_fetch = agents_needing_fetch[:MAX_FETCH_PER_RUN]
+        
+        sem = asyncio.Semaphore(15) # Gentle concurrency of 15 requests
+        agent_device_data = {}
+
+        async def fetch_devices_for_agent(agent):
+            agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
+            if not agent_id:
+                return
+            async with sem:
+                url = f"https://xiaozhi.me/api/agents/{agent_id}/devices"
+                try:
+                    res = await client.get(url, headers=headers, timeout=6.0)
+                    if res.status_code == 200:
+                        agent_device_data[agent_id] = res.json()
+                except Exception as ex:
+                    logger.warning(f"Failed to fetch devices for agent {agent_id}: {ex}")
+
+        if agents_to_fetch:
+            tasks = [fetch_devices_for_agent(agent) for agent in agents_to_fetch]
+            await asyncio.gather(*tasks)
+
+        # 5. Update Database
         synced_count = 0
         for agent in all_agents:
             agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
@@ -236,11 +261,11 @@ class XiaozhiService:
                 db_device.tts_pitch = pitch
                 db_device.mcp_endpoints_json = json.dumps(endpoints)
                 
-                # Hardware metadata
-                db_device.board_name = dev.get("board_name") or dev.get("boardName")
-                db_device.serial_number = dev.get("serial_number") or dev.get("serialNumber")
-                db_device.is_auth = dev.get("is_auth") or dev.get("isAuth") or False
-                db_device.app_version = dev.get("app_version") or dev.get("appVersion")
+                # Hardware metadata - IMPORTANT: Fallback to existing db value to avoid overwriting with None or N/A
+                db_device.board_name = dev.get("board_name") or dev.get("boardName") or db_device.board_name or "N/A"
+                db_device.serial_number = dev.get("serial_number") or dev.get("serialNumber") or db_device.serial_number or "N/A"
+                db_device.is_auth = dev.get("is_auth") or dev.get("isAuth") or db_device.is_auth or False
+                db_device.app_version = dev.get("app_version") or dev.get("appVersion") or db_device.app_version or "N/A"
                 
                 db_device.account_id = account.id
                 db_device.agent_id = agent_id
