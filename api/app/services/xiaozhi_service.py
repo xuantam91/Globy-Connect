@@ -227,25 +227,26 @@ class XiaozhiService:
                 "last_seen_at": device.last_seen_at.isoformat() if device.last_seen_at else None
             })
             
-        # Fire-and-forget the actual HTTP call to Supabase in a background task
-        async def do_supabase_post(url, key, data):
-            endpoint = f"{url}/rest/v1/devices"
-            headers = {
-                "apikey": key,
-                "Authorization": f"Bearer {key}",
-                "Content-Type": "application/json",
-                "Prefer": "resolution=merge-duplicates"
-            }
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                try:
-                    res = await client.post(endpoint, json=data, headers=headers)
-                    if res.status_code not in (200, 201):
-                        logger.error(f"Supabase bulk sync failed with status {res.status_code}: {res.text}")
-                except Exception as e:
-                    logger.error(f"Error bulk syncing devices to Supabase: {e}")
-                    
-        asyncio.create_task(do_supabase_post(sb_url, sb_key, payload))
-        return True
+        endpoint = f"{sb_url}/rest/v1/devices?on_conflict=external_id"
+        headers = {
+            "apikey": sb_key,
+            "Authorization": f"Bearer {sb_key}",
+            "Content-Type": "application/json",
+            "Prefer": "resolution=merge-duplicates"
+        }
+        
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            try:
+                res = await client.post(endpoint, json=payload, headers=headers)
+                if res.status_code in (200, 201):
+                    logger.info("Successfully bulk synced devices to Supabase.")
+                    return True
+                else:
+                    logger.error(f"Supabase bulk sync failed with status {res.status_code}: {res.text}")
+                    return False
+            except Exception as e:
+                logger.error(f"Error bulk syncing devices to Supabase: {e}")
+                return False
 
     async def update_device_config(self, device: Device, llm_model: str, language: str, tts_voice: str, tts_speech_speed: str, asr_speed: str, tts_pitch: int, mcp_endpoints: list, character: str) -> bool:
         """Saves config to DB and uploads to Xiaozhi API."""

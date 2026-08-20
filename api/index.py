@@ -512,7 +512,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
         )
     
     if ok:
-        queue_supabase_sync(device, db, background_tasks)
+        await sync_device_to_supabase(device, db)
         return {"success": True}
     else:
         return {"success": False, "message": "Failed to push configuration to Xiaozhi API"}
@@ -961,30 +961,8 @@ def admin_change_password(p: AdminChangePassword, db: Session = Depends(get_db))
     db.commit()
     return {"success": True, "message": "Đã đổi mật khẩu quản trị viên thành công!"}
 
-async def sync_device_to_supabase_bg(sb_url: str, sb_key: str, payload: dict):
+async def sync_device_to_supabase(device: Device, db: Session):
     import httpx
-    import logging
-    logger = logging.getLogger(__name__)
-    
-    endpoint = f"{sb_url}/rest/v1/devices"
-    headers = {
-        "apikey": sb_key,
-        "Authorization": f"Bearer {sb_key}",
-        "Content-Type": "application/json",
-        "Prefer": "resolution=merge-duplicates"
-    }
-    
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            res = await client.post(endpoint, json=payload, headers=headers)
-            if res.status_code in (200, 201):
-                logger.info("Successfully synced device to Supabase in background.")
-            else:
-                logger.error(f"Supabase background sync failed with status {res.status_code}: {res.text}")
-        except Exception as e:
-            logger.error(f"Error in Supabase background sync: {e}")
-
-def queue_supabase_sync(device: Device, db: Session, background_tasks: BackgroundTasks):
     import logging
     logger = logging.getLogger(__name__)
     
@@ -1003,8 +981,16 @@ def queue_supabase_sync(device: Device, db: Session, background_tasks: Backgroun
         
     if not sb_url or not sb_key:
         logger.info("Supabase sync skipped: URL or Key is not configured.")
-        return
+        return False
         
+    endpoint = f"{sb_url}/rest/v1/devices?on_conflict=external_id"
+    headers = {
+        "apikey": sb_key,
+        "Authorization": f"Bearer {sb_key}",
+        "Content-Type": "application/json",
+        "Prefer": "resolution=merge-duplicates"
+    }
+    
     payload = {
         "external_id": device.external_id,
         "name": device.name,
@@ -1023,7 +1009,18 @@ def queue_supabase_sync(device: Device, db: Session, background_tasks: Backgroun
         "last_seen_at": device.last_seen_at.isoformat() if device.last_seen_at else None
     }
     
-    background_tasks.add_task(sync_device_to_supabase_bg, sb_url, sb_key, payload)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            res = await client.post(endpoint, json=payload, headers=headers)
+            if res.status_code in (200, 201):
+                logger.info(f"Successfully synced device {device.name} to Supabase.")
+                return True
+            else:
+                logger.error(f"Supabase sync failed with status {res.status_code}: {res.text}")
+                return False
+        except Exception as e:
+            logger.error(f"Error syncing device to Supabase: {e}")
+            return False
 
 @app.post("/api/devices/activate")
 async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -1175,7 +1172,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                     
                     db.commit()
                     db.refresh(db_device)
-                    queue_supabase_sync(db_device, db, background_tasks)
+                    await sync_device_to_supabase(db_device, db)
 
                     # Sync preset configuration to Xiaozhi
                     if agent_id:
