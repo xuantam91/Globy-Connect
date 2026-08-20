@@ -428,7 +428,7 @@ export default function QrLanding() {
           AI Đang Thiết Lập Cấu Hình... 🚀
         </h3>
         <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.6', maxWidth: '300px', margin: '0 auto' }}>
-          Đang truyền dữ liệu đám mây và tối ưu hóa giọng nói trí tuệ nhân tạo trên Loa của bé. Vui lòng giữ kết nối.
+          Đang truyền dữ liệu đám mây và tối ưu hóa cấu hình giọng nói AI trên Loa. Vui lòng giữ kết nối.
         </p>
       </div>
     );

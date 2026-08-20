@@ -500,7 +500,7 @@ export default function Home() {
             marginBottom: '16px',
             border: '1px solid rgba(99, 102, 241, 0.2)'
           }}>
-            <Sparkles size={12} /> CÔNG NGHỆ LOA THÔNG MINH CHO TRẺ EM
+            <Sparkles size={12} /> CÔNG NGHỆ LOA THÔNG MINH CHO GIAO TIẾP NGOẠI NGỮ
           </span>
           <h2 style={{ fontSize: '2.5rem', fontWeight: 800, lineHeight: 1.2, letterSpacing: '-0.02em', marginBottom: '12px' }}>
             Cấu hình Trí tuệ Nhân tạo <br/>
@@ -594,7 +594,7 @@ export default function Home() {
             </div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Thay đổi cấu hình</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '20px', flex: 1 }}>
-              Quét mã QR dán trên thân loa hoặc nhập thông số để điều chỉnh ngôn ngữ, giọng nói của bé.
+              Quét mã QR dán trên thân loa hoặc nhập thông số để điều chỉnh cấu hình và ngôn ngữ giao tiếp.
             </p>
             <button 
               onClick={() => setShowConfigModal(true)}
@@ -817,7 +817,7 @@ export default function Home() {
                 <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tên gợi nhớ của loa (Tùy chọn)</label>
                 <input 
                   type="text" 
-                  placeholder="Ví dụ: Loa của bé, Loa phòng khách..."
+                  placeholder="Ví dụ: Loa phòng khách, Loa cá nhân..."
                   value={newDeviceName}
                   onChange={e => setNewDeviceName(e.target.value)}
                   disabled={activating}
@@ -934,7 +934,7 @@ export default function Home() {
             width: '90%',
             border: '1px solid rgba(255,255,255,0.15)'
           }}>
-            <h4 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px', textAlign: 'center' }}>Vào cấu hình Loa của bé</h4>
+            <h4 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px', textAlign: 'center' }}>Vào cấu hình Loa giao tiếp ngoại ngữ</h4>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '24px', textAlign: 'center' }}>
               Hãy quét mã QR dán trên thân loa hoặc nhập thông số để kết nối
             </p>
@@ -1155,7 +1155,7 @@ export default function Home() {
         color: 'var(--text-muted)',
         zIndex: 10
       }}>
-        &copy; {new Date().getFullYear()} Globy AI Connect. Hỗ trợ hệ điều hành Xiaozhi Dashboard Lite.
+        &copy; {new Date().getFullYear()} Globy AI Connect. Hỗ trợ hệ điều hành loa Globy.
       </footer>
 
       {/* Embedded CSS animations for scanning line */}
