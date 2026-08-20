@@ -335,6 +335,62 @@ export default function QrLanding() {
     );
   }
 
+  if (applying) {
+    return (
+      <div className="animated-fade-in" style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '32px', textAlign: 'center' }}>
+        <style>{`
+          @keyframes corePulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.6); }
+            50% { transform: scale(1.1); box-shadow: 0 0 0 20px rgba(99, 102, 241, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+          }
+          @keyframes orbitRotate {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+        
+        <div style={{ position: 'relative', width: '120px', height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px', margin: '0 auto 28px' }}>
+          {/* Orbit rings */}
+          <div style={{
+            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+            border: '2px dashed rgba(99, 102, 241, 0.3)',
+            borderRadius: '50%',
+            animation: 'orbitRotate 8s linear infinite'
+          }}></div>
+          <div style={{
+            position: 'absolute', top: '10px', left: '10px', right: '10px', bottom: '10px',
+            border: '2px dotted rgba(16, 185, 129, 0.4)',
+            borderRadius: '50%',
+            animation: 'orbitRotate 4s linear infinite reverse'
+          }}></div>
+          
+          {/* Glowing AI Core */}
+          <div style={{
+            width: '64px', height: '64px',
+            background: 'linear-gradient(135deg, #6366f1, #10b981)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2,
+            animation: 'corePulse 2s infinite ease-in-out',
+            position: 'absolute', top: '28px', left: '28px'
+          }}>
+            <Cpu size={28} style={{ color: 'white' }} />
+          </div>
+        </div>
+
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '12px', background: 'linear-gradient(to right, #818cf8, #34d399)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          AI Đang Thiết Lập Cấu Hình... 🚀
+        </h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.6', maxWidth: '300px', margin: '0 auto' }}>
+          Đang truyền dữ liệu đám mây và tối ưu hóa giọng nói trí tuệ nhân tạo trên Loa của bé. Vui lòng giữ kết nối.
+        </p>
+      </div>
+    );
+  }
+
   if (success) {
     return (
       <div className="animated-fade-in" style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '32px', textAlign: 'center' }}>
@@ -345,12 +401,39 @@ export default function QrLanding() {
         <p style={{ color: 'var(--text-secondary)', marginBottom: '28px', fontSize: '0.9rem', lineHeight: 1.6 }}>
           Loa <strong>{deviceInfo?.name || 'Xiaozhi'}</strong> đã sẵn sàng với cấu hình mới.
         </p>
-        <button
-          onClick={() => { setSuccess(false); fetchPresets(); }}
-          style={{ ...s.applyBtn(false), maxWidth: '300px' }}
-        >
-          Đổi cấu hình khác
-        </button>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', alignItems: 'center' }}>
+          <button
+            onClick={() => { setSuccess(false); fetchPresets(); }}
+            style={{ ...s.applyBtn(false), maxWidth: '300px', width: '100%' }}
+          >
+            Thay đổi cấu hình khác
+          </button>
+          <button
+            onClick={() => {
+              if (window.opener || window.history.length === 1) {
+                window.close();
+              } else {
+                navigate('/');
+              }
+            }}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              padding: '12px 24px',
+              borderRadius: '10px',
+              fontWeight: 600,
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              width: '100%',
+              maxWidth: '300px',
+              transition: 'all 0.3s ease'
+            }}
+            type="button"
+          >
+            Hoàn tất (Đóng lại) ✖
+          </button>
+        </div>
       </div>
     );
   }

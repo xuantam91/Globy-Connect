@@ -392,6 +392,15 @@ export default function Home() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }
+        #qr-reader-container video {
+          width: 100% !important;
+          height: 100% !important;
+          object-fit: cover !important;
+          border-radius: 20px !important;
+        }
+        #qr-reader-container canvas {
+          display: none !important;
+        }
       `}</style>
       
       {/* Background glowing effects for Kid/AI theme */}
