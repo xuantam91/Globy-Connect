@@ -15,6 +15,7 @@ export default function Home() {
   const [activationDigits, setActivationDigits] = useState(['', '', '', '', '', '']);
   const [newDeviceName, setNewDeviceName] = useState('');
   const [configInput, setConfigInput] = useState('');
+  const [activationError, setActivationError] = useState(null);
   
   // Modals / Scanner state
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -72,6 +73,7 @@ export default function Home() {
   const handleDigitChange = (index, value) => {
     if (value && !/^\d$/.test(value)) return;
     
+    setActivationError(null);
     // Clear auto-speak timer and stop pulsing if user starts typing
     if (autoSpeakTimerId) {
       clearTimeout(autoSpeakTimerId);
@@ -89,6 +91,7 @@ export default function Home() {
   };
 
   const handleDigitKeyDown = (index, e) => {
+    setActivationError(null);
     if (autoSpeakTimerId) {
       clearTimeout(autoSpeakTimerId);
       setAutoSpeakTimerId(null);
@@ -103,6 +106,7 @@ export default function Home() {
 
   const handleDigitPaste = (e) => {
     e.preventDefault();
+    setActivationError(null);
     if (autoSpeakTimerId) {
       clearTimeout(autoSpeakTimerId);
       setAutoSpeakTimerId(null);
@@ -122,6 +126,7 @@ export default function Home() {
       setActivationDigits(['', '', '', '', '', '']);
       setIsSpeaking(false);
       setIsSpeakerPulsing(false);
+      setActivationError(null);
       
       // 1. Focus the first input box
       const focusTimer = setTimeout(() => {
@@ -191,9 +196,10 @@ export default function Home() {
   const handleActivateDevice = async () => {
     const cleanCode = activationDigits.join('').trim();
     if (!cleanCode || cleanCode.length !== 6 || !/^\d+$/.test(cleanCode)) {
-      alert("Vui lòng nhập đúng dãy 6 chữ số hiển thị trên loa!");
+      setActivationError("Vui lòng nhập đúng dãy 6 chữ số hiển thị trên loa!");
       return;
     }
+    setActivationError(null);
     try {
       const res = await fetch('/api/devices/activate', {
         method: 'POST',
@@ -204,17 +210,17 @@ export default function Home() {
         })
       });
       const data = await res.json();
-      if (data.success) {
-        alert(`Kích hoạt thành công ${data.name}! Hệ thống sẽ đưa bạn đến trang thiết lập.`);
+      if (res.ok && data.success) {
         setShowActivationModal(false);
         setActivationDigits(['', '', '', '', '', '']);
         setNewDeviceName('');
-        navigate(`/role?mac=${encodeURIComponent(data.mac_address)}`);
+        const cleanMac = (data.mac_address || '').replace(/[:-\s]/g, '').toLowerCase();
+        navigate(`/role?mac=${encodeURIComponent(cleanMac)}`);
       } else {
-        alert(data.detail || "Kích hoạt thất bại. Vui lòng kiểm tra lại mã.");
+        setActivationError(data.detail || "Mã kích hoạt không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại.");
       }
     } catch (err) {
-      alert("Lỗi kết nối khi gửi yêu cầu kích hoạt.");
+      setActivationError("Lỗi kết nối khi gửi yêu cầu kích hoạt.");
     }
   };
 
@@ -704,6 +710,26 @@ export default function Home() {
                 <Volume2 size={16} />
               </button>
             </div>
+            
+            {activationError && (
+              <div className="animated-fade-in" style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid #ef4444',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                color: '#ef4444',
+                fontSize: '0.82rem',
+                lineHeight: '1.45',
+                fontWeight: 600,
+                textAlign: 'left',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '8px'
+              }}>
+                <span>⚠️ {activationError}</span>
+              </div>
+            )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {/* Split Activation code inputs */}
@@ -731,14 +757,14 @@ export default function Home() {
                         textAlign: 'center',
                         fontWeight: 700,
                         borderRadius: '10px',
-                        border: '2px solid var(--border-color)',
+                        border: activationError ? '2px solid #ef4444' : '2px solid var(--border-color)',
                         background: 'rgba(0,0,0,0.15)',
                         color: 'var(--text-primary)',
                         outline: 'none',
                         transition: 'border-color 0.15s ease'
                       }}
                       onFocus={e => e.target.style.borderColor = 'var(--primary)'}
-                      onBlur={e => e.target.style.borderColor = 'var(--border-color)'}
+                      onBlur={e => e.target.style.borderColor = activationError ? '#ef4444' : 'var(--border-color)'}
                     />
                   ))}
                 </div>
