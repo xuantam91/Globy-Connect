@@ -50,44 +50,72 @@ class XiaozhiService:
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
         }
 
-        # 1. Fetch Agents List (Pagination)
-        page = 1
-        page_size = 100
+        # 1. Fetch Agents List (Pagination with Parallel Pages)
         all_agents = []
         synced_devices = []
+        page_size = 100
 
         try:
-            while True:
-                res = await client.get(
-                    "https://xiaozhi.me/api/agents",
-                    params={"page": page, "pageSize": page_size},
-                    headers=headers
-                )
-                res.raise_for_status()
-                data = res.json()
-                
-                # Extract agents
-                agents = []
+            # Fetch Page 1 first
+            res1 = await client.get(
+                "https://xiaozhi.me/api/agents",
+                params={"page": 1, "pageSize": page_size},
+                headers=headers
+            )
+            res1.raise_for_status()
+            data1 = res1.json()
+            
+            def extract_agents(data):
                 if isinstance(data, list):
-                    agents = data
-                elif isinstance(data, dict):
+                    return data
+                if isinstance(data, dict):
                     d_val = data.get("data")
                     if isinstance(d_val, list):
-                        agents = d_val
-                    elif isinstance(d_val, dict):
-                        agents = d_val.get("items") or d_val.get("list") or d_val.get("agents") or []
-                    else:
-                        agents = data.get("items") or data.get("list") or data.get("agents") or []
+                        return d_val
+                    if isinstance(d_val, dict):
+                        return d_val.get("items") or d_val.get("list") or d_val.get("agents") or []
+                    return data.get("items") or data.get("list") or data.get("agents") or []
+                return []
                 
-                agents = [a for a in agents if isinstance(a, dict)]
+            agents1 = [a for a in extract_agents(data1) if isinstance(a, dict)]
+            all_agents.extend(agents1)
+            
+            # Determine total pages
+            total_items = 0
+            if isinstance(data1, dict):
+                total_items = data1.get("total") or data1.get("totalCount") or data1.get("count") or 0
+                if not total_items and isinstance(data1.get("data"), dict):
+                    d_dict = data1["data"]
+                    total_items = d_dict.get("total") or d_dict.get("totalCount") or d_dict.get("count") or 0
+            
+            if total_items > 0:
+                import math
+                total_pages = math.ceil(total_items / page_size)
+            elif len(agents1) == page_size:
+                # Speculative fallback if total is not provided
+                total_pages = 12 # Cover up to 1200 devices in parallel
+            else:
+                total_pages = 1
                 
-                if not agents:
-                    break
+            if total_pages > 1:
+                # Fetch remaining pages in parallel
+                async def fetch_page(p_num):
+                    try:
+                        res = await client.get(
+                            "https://xiaozhi.me/api/agents",
+                            params={"page": p_num, "pageSize": page_size},
+                            headers=headers
+                        )
+                        if res.status_code == 200:
+                            return [a for a in extract_agents(res.json()) if isinstance(a, dict)]
+                    except Exception as pe:
+                        logger.warning(f"Failed to fetch page {p_num} in parallel: {pe}")
+                    return []
                     
-                all_agents.extend(agents)
-                if len(agents) < page_size:
-                    break
-                page += 1
+                page_tasks = [fetch_page(p) for p in range(2, total_pages + 1)]
+                pages_results = await asyncio.gather(*page_tasks)
+                for page_agents in pages_results:
+                    all_agents.extend(page_agents)
         except Exception as e:
             logger.error(f"Failed to fetch agents for account {account.label}: {e}")
             raise e
