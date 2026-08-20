@@ -464,6 +464,23 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteDevice = async (id) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa thiết bị này khỏi hệ thống Globy? (Nhấn đồng bộ lại sẽ tải lại nếu thiết bị vẫn tồn tại trên Xiaozhi)')) return;
+    try {
+      const res = await fetch(`/api/devices/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        showNotification('Đã xóa thiết bị thành công!');
+        fetchDevices();
+        setSelectedIds(prev => prev.filter(x => x !== id));
+      } else {
+        showNotification(data.message || 'Lỗi khi xóa thiết bị', 'error');
+      }
+    } catch (err) {
+      showNotification('Lỗi kết nối khi xóa thiết bị', 'error');
+    }
+  };
+
   const handleMovePreset = async (index, direction) => {
     const newList = [...presets];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
@@ -1694,6 +1711,25 @@ export default function AdminDashboard() {
                                 type="button"
                               >
                                 <QrCode size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteDevice(d.id)}
+                                style={{ 
+                                  background: 'transparent', 
+                                  color: '#ef4444', 
+                                  padding: '6px', 
+                                  borderRadius: '6px', 
+                                  border: '1px solid rgba(255,255,255,0.08)', 
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  flexShrink: 0
+                                }}
+                                title="Xóa thiết bị"
+                                type="button"
+                              >
+                                <Trash2 size={16} />
                               </button>
                             </div>
                           </td>

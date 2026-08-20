@@ -217,6 +217,40 @@ def delete_account(account_id: int, db: Session = Depends(get_db)):
     db.commit()
     return {"success": True}
 
+@app.delete("/api/devices/{device_id}")
+def delete_device(device_id: int, db: Session = Depends(get_db)):
+    device = db.scalar(select(Device).where(Device.id == device_id))
+    if not device:
+        raise HTTPException(status_code=404, detail="Device not found")
+    
+    # 1. Delete from Supabase first if configured
+    try:
+        from api.app.core.database import SUPABASE_URL, SUPABASE_KEY
+        import httpx
+        if SUPABASE_URL and SUPABASE_KEY:
+            supabase_headers = {
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json"
+            }
+            res = httpx.delete(
+                f"{SUPABASE_URL}/rest/v1/devices?external_id=eq.{device.external_id}",
+                headers=supabase_headers
+            )
+            if res.status_code not in (200, 204, 404):
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to delete device from Supabase (Status: {res.status_code}): {res.text}")
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error deleting device from Supabase: {e}")
+
+    # 2. Delete from local SQLite
+    db.delete(device)
+    db.commit()
+    return {"success": True, "message": "Xóa thiết bị khỏi Globy thành công!"}
+
 # Devices API
 @app.get("/api/devices")
 def get_devices(db: Session = Depends(get_db)):
