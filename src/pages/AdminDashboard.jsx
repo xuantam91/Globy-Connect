@@ -34,6 +34,7 @@ export default function AdminDashboard() {
   const [supabaseKey, setSupabaseKey] = useState('');
   const [hasSupabaseKey, setHasSupabaseKey] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [showSqlScript, setShowSqlScript] = useState(false);
 
   // Admin Change Password State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -1502,25 +1503,104 @@ export default function AdminDashboard() {
           </div>
 
           {/* Right Side: SQL Setup Script Instruction */}
-          <div className="glass-panel" style={{ padding: '24px', background: 'rgba(255, 255, 255, 0.02)', border: '1px solid var(--border-color)', borderRadius: '16px' }}>
-            <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Code size={18} style={{ color: 'var(--primary)' }} /> SQL Setup Script
-            </h4>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '16px' }}>
-              Bạn cần chạy câu lệnh SQL này trong mục **SQL Editor** trên trang quản trị Supabase của bạn để khởi tạo bảng `devices` tương thích:
-            </p>
+          <div className="glass-panel" style={{ 
+            padding: '24px', 
+            background: 'rgba(255, 255, 255, 0.02)', 
+            border: '1px solid var(--border-color)', 
+            borderRadius: '16px',
+            alignSelf: 'flex-start',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div>
+              <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Code size={18} style={{ color: 'var(--primary)' }} /> Khởi tạo Database Supabase
+              </h4>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', lineHeight: '1.5' }}>
+                Chuẩn bị bảng <code>devices</code> tương thích trong cơ sở dữ liệu Supabase của bạn để đồng bộ hóa hoạt động của loa.
+              </p>
+            </div>
 
-            <pre style={{ 
-              background: 'rgba(0,0,0,0.3)', 
-              padding: '12px', 
-              borderRadius: '8px', 
-              fontFamily: 'monospace', 
-              fontSize: '0.75rem', 
-              overflowX: 'auto', 
-              color: '#34d399',
-              border: '1px solid rgba(255,255,255,0.05)',
-              whiteSpace: 'pre-wrap'
-            }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  const sqlText = `create table devices (
+  external_id text primary key,
+  name text,
+  status text,
+  mac_address text,
+  current_language text,
+  current_voice text,
+  ai_prompt_template text,
+  asr_speed text,
+  tts_speech_speed text,
+  tts_pitch integer,
+  board_name text,
+  serial_number text,
+  is_auth boolean,
+  app_version text,
+  last_seen_at timestamp with time zone default timezone('utc'::text, now())
+);`;
+                  navigator.clipboard.writeText(sqlText);
+                  showNotification('Đã sao chép SQL Setup Script vào bộ nhớ tạm!');
+                }}
+                style={{
+                  background: 'linear-gradient(to right, #6366f1, #4f46e5)',
+                  color: 'white',
+                  border: 'none',
+                  padding: '12px 16px',
+                  borderRadius: '10px',
+                  fontWeight: 600,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 12px rgba(99,102,241,0.2)',
+                  transition: 'all 0.3s ease'
+                }}
+              >
+                <FileText size={16} /> Sao chép SQL Setup Script
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowSqlScript(!showSqlScript)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--primary)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '4px',
+                  padding: '8px 0',
+                  textDecoration: 'underline'
+                }}
+              >
+                {showSqlScript ? 'Ẩn câu lệnh SQL chi tiết ▴' : 'Hiển thị câu lệnh SQL chi tiết ▾'}
+              </button>
+            </div>
+
+            {showSqlScript && (
+              <pre className="animated-fade-in" style={{ 
+                background: 'rgba(0,0,0,0.3)', 
+                padding: '14px', 
+                borderRadius: '10px', 
+                fontFamily: 'monospace', 
+                fontSize: '0.72rem', 
+                overflowX: 'auto', 
+                color: '#34d399',
+                border: '1px solid rgba(255,255,255,0.06)',
+                whiteSpace: 'pre-wrap',
+                margin: 0
+              }}>
 {`create table devices (
   external_id text primary key,
   name text,
@@ -1538,7 +1618,8 @@ export default function AdminDashboard() {
   app_version text,
   last_seen_at timestamp with time zone default timezone('utc'::text, now())
 );`}
-            </pre>
+              </pre>
+            )}
           </div>
 
         </div>
