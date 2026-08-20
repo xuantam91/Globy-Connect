@@ -63,6 +63,9 @@ export default function QrLanding() {
   const [extensions, setExtensions] = useState(['2', '104']);
   const [characterPrompt, setCharacterPrompt] = useState('');
   const [contribute, setContribute] = useState(true);
+  const [contributedPresetName, setContributedPresetName] = useState('');
+  const [contributorName, setContributorName] = useState('');
+  const [showDetailSettings, setShowDetailSettings] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -152,7 +155,9 @@ export default function QrLanding() {
         llm_model: llmModel, language, tts_voice: ttsVoice,
         tts_speech_speed: ttsSpeechSpeed, asr_speed: asrSpeed,
         tts_pitch: ttsPitch, mcp_endpoints: extensions,
-        character: characterPrompt, contribute
+        character: characterPrompt, contribute,
+        preset_name: contributedPresetName,
+        contributor: contributorName
       };
     }
     try {
@@ -720,17 +725,12 @@ export default function QrLanding() {
       ) : (
         /* ADVANCED CUSTOM FORM */
         <div className="animated-fade-in" style={{ ...s.scrollArea, padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <div style={s.sectionTitle}>Tùy chỉnh nâng cao:</div>
+          <div style={s.sectionTitle}>Tùy chỉnh cấu hình AI:</div>
 
+          {/* Row 1: Language & Voice side-by-side */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Mô hình AI</label>
-              <select value={llmModel} onChange={e => setLlmModel(e.target.value)} style={{ padding: '10px', fontSize: '0.85rem', borderRadius: '10px' }}>
-                {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-              </select>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Ngôn ngữ</label>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Ngôn ngữ</label>
               <select value={language} onChange={e => {
                 setLanguage(e.target.value);
                 const vl = voices[e.target.value] || [];
@@ -739,69 +739,170 @@ export default function QrLanding() {
                 {languages.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}
               </select>
             </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Giọng nói</label>
-            <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{ padding: '10px', fontSize: '0.85rem', borderRadius: '10px' }}>
-              {(voices[language] || []).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-            </select>
-          </div>
-
-          {/* Speed/Pitch sliders */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '12px' }}>
-            {[
-              { label: 'Nhận diện', icon: <Mic size={12} style={{ color: '#818cf8' }} />, value: speedOptions.indexOf(asrSpeed), setter: v => setAsrSpeed(speedOptions[v]), labels: ['Chậm', 'Thường', 'Nhanh'] },
-              { label: 'Tốc độ nói', icon: <Volume2 size={12} style={{ color: '#38bdf8' }} />, value: speedOptions.indexOf(ttsSpeechSpeed), setter: v => setTtsSpeechSpeed(speedOptions[v]), labels: ['Chậm', 'Thường', 'Nhanh'] },
-              { label: 'Cao độ', icon: <Sliders size={12} style={{ color: '#f43f5e' }} />, value: pitchOptions.indexOf(ttsPitch), setter: v => setTtsPitch(pitchOptions[v]), labels: ['Thấp', 'Thường', 'Cao'] },
-            ].map((s, i) => (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.68rem', fontWeight: 600 }}>
-                  {s.icon} <span>{s.label}</span>
-                </div>
-                <input type="range" min="0" max="2" step="1" value={s.value}
-                  onChange={e => s.setter(parseInt(e.target.value))}
-                  style={{ width: '100%', height: '4px', accentColor: 'var(--primary)' }}
-                />
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)' }}>
-                  {s.labels.map((l, j) => <span key={j}>{l}</span>)}
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Extensions */}
-          <div style={{ border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tiện ích mở rộng</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
-              {[{ id: '2', label: '🌦️ Thời tiết' }, { id: '9', label: '🎶 Âm nhạc' }, { id: '104', label: '📚 Tri thức' }].map(ext => (
-                <label key={ext.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={extensions.includes(ext.id)} onChange={() => handleExtensionToggle(ext.id)} />
-                  {ext.label}
-                </label>
-              ))}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Giọng nói</label>
+              <select value={ttsVoice} onChange={e => setTtsVoice(e.target.value)} style={{ padding: '10px', fontSize: '0.85rem', borderRadius: '10px' }}>
+                {(voices[language] || []).map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+              </select>
             </div>
           </div>
 
-          {/* Character prompt */}
+          {/* Row 2: Character Prompt (Large text area) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Prompt nhân vật</label>
-            <textarea rows="3" value={characterPrompt} onChange={e => setCharacterPrompt(e.target.value)}
-              style={{ fontSize: '0.78rem', resize: 'vertical', borderRadius: '10px', padding: '10px' }}
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Prompt nhân vật (Mô tả tính cách & vai trò)</label>
+            <textarea 
+              rows="7" 
+              value={characterPrompt} 
+              onChange={e => setCharacterPrompt(e.target.value)}
+              placeholder="Ví dụ: Bạn là một gia sư tiếng Anh vui vẻ, luôn đặt câu hỏi ngắn gọn..."
+              style={{ 
+                fontSize: '0.82rem', 
+                lineHeight: '1.5',
+                resize: 'vertical', 
+                borderRadius: '10px', 
+                padding: '12px',
+                minHeight: '150px'
+              }}
             />
           </div>
 
-          {/* Contribute */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
-            <input type="checkbox" id="contributeCheck" checked={contribute}
-              onChange={e => setContribute(e.target.checked)}
-              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-            />
-            <label htmlFor="contributeCheck" style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-              <Heart size={12} style={{ fill: contribute ? '#ef4444' : 'none', stroke: '#ef4444' }} />
-              Đóng góp cấu hình cho cộng đồng
-            </label>
+          {/* Row 3: Collapsible settings header */}
+          <div 
+            onClick={() => setShowDetailSettings(!showDetailSettings)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 14px',
+              background: 'rgba(255, 255, 255, 0.02)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              cursor: 'pointer',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              color: 'var(--primary)',
+              marginTop: '4px',
+              userSelect: 'none',
+              transition: 'all 0.2s ease'
+            }}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Sliders size={14} /> Điều chỉnh âm thanh & mô hình AI khác
+            </span>
+            <span>{showDetailSettings ? 'Ẩn cài đặt nâng cao ▴' : 'Hiện cài đặt nâng cao ▾'}</span>
           </div>
+
+          {/* Collapsible Content */}
+          {showDetailSettings && (
+            <div className="animated-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '4px 0' }}>
+              
+              {/* AI Model selection */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Mô hình AI trí tuệ nhân tạo</label>
+                <select value={llmModel} onChange={e => setLlmModel(e.target.value)} style={{ padding: '10px', fontSize: '0.85rem', borderRadius: '10px' }}>
+                  {models.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+
+              {/* Speed/Pitch sliders */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '12px', background: 'rgba(0,0,0,0.1)' }}>
+                {[
+                  { label: 'Nhận diện', icon: <Mic size={12} style={{ color: '#818cf8' }} />, value: speedOptions.indexOf(asrSpeed), setter: v => setAsrSpeed(speedOptions[v]), labels: ['Chậm', 'Thường', 'Nhanh'] },
+                  { label: 'Tốc độ nói', icon: <Volume2 size={12} style={{ color: '#38bdf8' }} />, value: speedOptions.indexOf(ttsSpeechSpeed), setter: v => setTtsSpeechSpeed(speedOptions[v]), labels: ['Chậm', 'Thường', 'Nhanh'] },
+                  { label: 'Cao độ', icon: <Sliders size={12} style={{ color: '#f43f5e' }} />, value: pitchOptions.indexOf(ttsPitch), setter: v => setTtsPitch(pitchOptions[v]), labels: ['Thấp', 'Thường', 'Cao'] },
+                ].map((s, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.68rem', fontWeight: 600 }}>
+                      {s.icon} <span>{s.label}</span>
+                    </div>
+                    <input type="range" min="0" max="2" step="1" value={s.value}
+                      onChange={e => s.setter(parseInt(e.target.value))}
+                      style={{ width: '100%', height: '4px', accentColor: 'var(--primary)' }}
+                    />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.55rem', color: 'var(--text-muted)' }}>
+                      {s.labels.map((l, j) => <span key={j}>{l}</span>)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Extensions */}
+              <div style={{ border: '1px solid var(--border-color)', padding: '10px 12px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.1)' }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tiện ích mở rộng</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                  {[{ id: '2', label: '🌦️ Thời tiết' }, { id: '9', label: '🎶 Âm nhạc' }, { id: '104', label: '📚 Tri thức' }].map(ext => (
+                    <label key={ext.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={extensions.includes(ext.id)} onChange={() => handleExtensionToggle(ext.id)} />
+                      {ext.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* Row 4: Contribute */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '4px 0' }}>
+              <input type="checkbox" id="contributeCheck" checked={contribute}
+                onChange={e => setContribute(e.target.checked)}
+                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+              />
+              <label htmlFor="contributeCheck" style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
+                <Heart size={12} style={{ fill: contribute ? '#ef4444' : 'none', stroke: '#ef4444' }} />
+                Đóng góp cấu hình này cho cộng đồng
+              </label>
+            </div>
+
+            {contribute && (
+              <div className="animated-fade-in" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr', 
+                gap: '10px', 
+                background: 'rgba(99,102,241,0.06)', 
+                padding: '12px', 
+                borderRadius: '12px', 
+                border: '1px dashed rgba(99,102,241,0.25)' 
+              }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tên cấu hình mẫu</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ví dụ: Luyện nói IELTS..." 
+                    value={contributedPresetName} 
+                    onChange={e => setContributedPresetName(e.target.value)} 
+                    style={{ 
+                      padding: '8px 10px', 
+                      fontSize: '0.8rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid var(--border-color)', 
+                      background: 'rgba(0,0,0,0.2)', 
+                      color: 'var(--text-primary)' 
+                    }}
+                  />
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tên người đóng góp</label>
+                  <input 
+                    type="text" 
+                    placeholder="Tên của bạn..." 
+                    value={contributorName} 
+                    onChange={e => setContributorName(e.target.value)} 
+                    style={{ 
+                      padding: '8px 10px', 
+                      fontSize: '0.8rem', 
+                      borderRadius: '8px', 
+                      border: '1px solid var(--border-color)', 
+                      background: 'rgba(0,0,0,0.2)', 
+                      color: 'var(--text-primary)' 
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
       )}
 

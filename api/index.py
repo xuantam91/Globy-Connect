@@ -187,6 +187,8 @@ class QrApply(BaseModel):
     mcp_endpoints: Optional[List[str]] = None
     character: Optional[str] = None
     contribute: Optional[bool] = False
+    preset_name: Optional[str] = None
+    contributor: Optional[str] = None
 
 class DeviceActivate(BaseModel):
     code: str
@@ -421,12 +423,14 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
         )
 
         if ok and qr.contribute:
-            preset_name = f"User Config ({qr.mac_address[-4:] if len(qr.mac_address) >= 4 else qr.mac_address})"
-            existing = db.scalar(select(Preset).where(Preset.name == preset_name))
+            final_preset_name = qr.preset_name.strip() if qr.preset_name and qr.preset_name.strip() else f"User Config ({qr.mac_address[-4:] if len(qr.mac_address) >= 4 else qr.mac_address})"
+            final_contributor = qr.contributor.strip() if qr.contributor and qr.contributor.strip() else f"người dùng thiết bị {qr.mac_address}"
+            
+            existing = db.scalar(select(Preset).where(Preset.name == final_preset_name))
             if not existing:
                 db_preset = Preset(
-                    name=preset_name,
-                    description=f"Cấu hình đóng góp bởi người dùng thiết bị {qr.mac_address}",
+                    name=final_preset_name,
+                    description=f"Cấu hình đóng góp bởi {final_contributor}",
                     llm_model=qr.llm_model,
                     language=qr.language,
                     tts_voice=qr.tts_voice,
