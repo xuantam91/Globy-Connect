@@ -296,9 +296,52 @@ export default function QrLanding() {
   // --- RENDER ---
   if (loading) {
     return (
-      <div style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '24px' }}>
-        <RefreshCw size={36} style={{ color: 'var(--primary)', animation: 'spin 1s linear infinite', marginBottom: '12px' }} />
-        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Đang kết nối tới Loa...</p>
+      <div style={{ ...s.page, justifyContent: 'center', alignItems: 'center', padding: '32px', textAlign: 'center' }}>
+        <style>{`
+          @keyframes sonarWave {
+            0% { transform: scale(0.8); opacity: 0.8; }
+            100% { transform: scale(2.2); opacity: 0; }
+          }
+          @keyframes iconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+          }
+        `}</style>
+
+        <div style={{ position: 'relative', width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '28px', margin: '0 auto 28px' }}>
+          {/* Sonar waves pulsing outward */}
+          <div style={{
+            position: 'absolute', width: '100%', height: '100%',
+            border: '2px solid var(--primary)',
+            borderRadius: '50%',
+            animation: 'sonarWave 2.4s infinite cubic-bezier(0.215, 0.610, 0.355, 1)'
+          }}></div>
+          <div style={{
+            position: 'absolute', width: '100%', height: '100%',
+            border: '2px solid #10b981',
+            borderRadius: '50%',
+            animation: 'sonarWave 2.4s infinite cubic-bezier(0.215, 0.610, 0.355, 1)',
+            animationDelay: '1.2s'
+          }}></div>
+          
+          {/* Center glowing speaker core */}
+          <div style={{
+            width: '56px', height: '56px',
+            background: 'linear-gradient(135deg, var(--primary), #10b981)',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 2,
+            boxShadow: '0 4px 20px rgba(99,102,241,0.4)',
+            animation: 'iconPulse 1.8s infinite ease-in-out'
+          }}>
+            <Volume2 size={24} style={{ color: 'white' }} />
+          </div>
+        </div>
+
+        <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '8px' }}>Đang Tìm Kiếm Thiết Bị...</h3>
+        <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Đang thiết lập kênh truyền kết nối đến loa.</p>
       </div>
     );
   }
