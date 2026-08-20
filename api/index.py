@@ -1040,7 +1040,9 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
     device_name = act.name.strip() if act.name and act.name.strip() else f"Loa Globy KH-{code[-4:]}"
 
     # Query the default preset from DB
-    default_preset = db.scalars(select(Preset)).first()
+    default_preset = db.scalar(select(Preset).where(Preset.is_default == True))
+    if not default_preset:
+        default_preset = db.scalars(select(Preset)).first()
     if default_preset:
         llm_model = default_preset.llm_model or "qwen"
         lang = default_preset.language or "vi"
