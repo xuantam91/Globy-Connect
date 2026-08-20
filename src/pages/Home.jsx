@@ -167,30 +167,38 @@ export default function Home() {
     const cleanInput = input.trim();
     if (!cleanInput) return;
     
-    // If it looks like a MAC (hex characters with optional colons), go direct
-    if (/^[0-9a-fA-F:]+$/.test(cleanInput.replace(/:/g, ''))) {
-      navigate(`/role?mac=${encodeURIComponent(cleanInput)}`);
-      return;
-    }
-    
-    // Otherwise check if it is a speaker name in the database
+    const flatInput = cleanInput.replace(/[:-\s]/g, '').toLowerCase();
+
     try {
       const res = await fetch('/api/devices');
       const data = await res.json();
-      if (data.success) {
-        const found = data.data.find(d => d.name && d.name.toLowerCase().includes(cleanInput.toLowerCase()));
-        if (found) {
-          navigate(`/role?mac=${encodeURIComponent(found.mac_address)}`);
-          setShowConfigModal(false);
-        } else {
-          // fallback direct MAC
-          navigate(`/role?mac=${encodeURIComponent(cleanInput)}`);
-        }
+      
+      let foundDevice = null;
+      if (data.success && data.data) {
+        foundDevice = data.data.find(d => {
+          const flatMac = (d.mac_address || '').replace(/[:-\s]/g, '').toLowerCase();
+          return (
+            flatMac === flatInput ||
+            String(d.external_id) === cleanInput ||
+            (d.name && d.name.toLowerCase() === cleanInput.toLowerCase())
+          );
+        });
+      }
+
+      if (foundDevice) {
+        const cleanMac = (foundDevice.mac_address || '').replace(/[:-\s]/g, '').toLowerCase();
+        navigate(`/role?mac=${encodeURIComponent(cleanMac)}`);
+        setShowConfigModal(false);
+        setConfigInput('');
       } else {
-        navigate(`/role?mac=${encodeURIComponent(cleanInput)}`);
+        navigate(`/role?mac=${encodeURIComponent(flatInput)}`);
+        setShowConfigModal(false);
+        setConfigInput('');
       }
     } catch (err) {
-      navigate(`/role?mac=${encodeURIComponent(cleanInput)}`);
+      navigate(`/role?mac=${encodeURIComponent(flatInput)}`);
+      setShowConfigModal(false);
+      setConfigInput('');
     }
   };
 
@@ -986,13 +994,13 @@ export default function Home() {
                 <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>— hoặc Nhập thông số thủ công —</span>
               </div>
 
-              {/* Manual input for MAC or Name */}
+              {/* Manual input for MAC or Device ID */}
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Nhập địa chỉ MAC hoặc Tên Loa</label>
+                <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Nhập địa chỉ MAC hoặc ID Thiết bị</label>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <input 
                     type="text" 
-                    placeholder="Ví dụ: VI:01:23:45:67:89 hoặc Loa Phòng Khách"
+                    placeholder="Ví dụ: 80b54ec7bc10 hoặc 2562180"
                     value={configInput}
                     onChange={e => setConfigInput(e.target.value)}
                     style={{
@@ -1020,6 +1028,9 @@ export default function Home() {
                     Vào
                   </button>
                 </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px', lineHeight: '1.4' }}>
+                  💡 Hướng dẫn: Truy cập vào mục <strong>Settings ➔ About speaker</strong> trên màn hình của loa để lấy địa chỉ MAC hoặc ID thiết bị.
+                </span>
               </div>
 
               <div style={{ width: '100%', display: 'flex', gap: '12px', marginTop: '12px' }}>

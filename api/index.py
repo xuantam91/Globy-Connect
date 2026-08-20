@@ -274,7 +274,8 @@ def get_device_by_mac(mac: str = Query(...), db: Session = Depends(get_db)):
     device = db.scalar(
         select(Device).where(
             (Device.mac_address.ilike(formatted_mac)) | 
-            (Device.mac_address.ilike(mac.strip()))
+            (Device.mac_address.ilike(mac.strip())) |
+            (Device.external_id == mac.strip())
         )
     )
     if not device:
@@ -343,7 +344,8 @@ async def apply_qr_template(qr: QrApply, db: Session = Depends(get_db)):
     device = db.scalar(
         select(Device).where(
             (Device.mac_address.ilike(formatted_mac)) | 
-            (Device.mac_address.ilike(qr.mac_address.strip()))
+            (Device.mac_address.ilike(qr.mac_address.strip())) |
+            (Device.external_id == qr.mac_address.strip())
         )
     )
     if not device:
@@ -1102,7 +1104,7 @@ async def activate_device(act: DeviceActivate, db: Session = Depends(get_db)):
                         db_device = Device(external_id=real_id)
                         db.add(db_device)
                     
-                    db_device.name = device_name
+                    db_device.name = f"Globy-{real_id}"
                     db_device.mac_address = real_mac
                     db_device.status = "online"
                     db_device.account_id = account.id
@@ -1139,7 +1141,7 @@ async def activate_device(act: DeviceActivate, db: Session = Depends(get_db)):
                         mapped_model = model_mapping.get(llm_model, "qwen")
 
                         config_payload = {
-                            "agent_name": device_name,
+                            "agent_name": f"Globy-{real_id}",
                             "llm_model": mapped_model,
                             "tts_voice": voice,
                             "tts_speech_speed": tts_speech_speed,
@@ -1159,8 +1161,8 @@ async def activate_device(act: DeviceActivate, db: Session = Depends(get_db)):
                     return {
                         "success": True, 
                         "mac_address": real_mac, 
-                        "name": device_name,
-                        "message": f"Kích hoạt thiết bị {device_name} trên Xiaozhi thành công!"
+                        "name": f"Globy-{real_id}",
+                        "message": f"Kích hoạt thiết bị Globy-{real_id} trên Xiaozhi thành công!"
                     }
                 else:
                     msg = res_data.get("message") or ""

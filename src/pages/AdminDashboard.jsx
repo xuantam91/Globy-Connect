@@ -1589,8 +1589,21 @@ export default function AdminDashboard() {
                           </td>
                           <td style={{ padding: '12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{d.name || 'Loa Xiaozhi'}</span>
+                                {d.external_id && (
+                                  <span style={{ 
+                                    fontSize: '0.68rem', 
+                                    background: 'rgba(99, 102, 241, 0.15)', 
+                                    color: '#818cf8', 
+                                    padding: '1px 6px', 
+                                    borderRadius: '4px', 
+                                    fontWeight: 600,
+                                    fontFamily: 'monospace'
+                                  }}>
+                                    ID: {d.external_id}
+                                  </span>
+                                )}
                               </div>
                               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', gap: '6px', alignItems: 'center', whiteSpace: 'nowrap' }}>
                                 <span style={{ flexShrink: 0 }}>ID: <strong style={{ color: 'var(--text-secondary)' }}>{d.external_id}</strong></span>
