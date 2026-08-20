@@ -95,75 +95,27 @@ class XiaozhiService:
         if not all_agents:
             return 0
 
-        # 2. Fetch Device Detail & Config for each Agent in Parallel
-        # Limit concurrency with a semaphore to prevent throttling
-        sem = asyncio.Semaphore(15) 
-        
-        async def fetch_detail_and_config(agent):
-            async with sem:
-                agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
-                if not agent_id:
-                    return None
-                
-                devices_url = f"https://xiaozhi.me/api/agents/{agent_id}/devices"
-                config_url = f"https://xiaozhi.me/api/agents/{agent_id}/config"
-                
-                async def get_devices():
-                    try:
-                        res = await client.get(devices_url, headers=headers)
-                        return res.json() if res.status_code == 200 else None
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch devices for agent {agent_id}: {e}")
-                        return None
-                        
-                async def get_config():
-                    try:
-                        res = await client.get(config_url, headers=headers)
-                        return res.json() if res.status_code == 200 else None
-                    except Exception as e:
-                        logger.warning(f"Failed to fetch config for agent {agent_id}: {e}")
-                        return None
+        # 2. Batch query all existing devices for this account to optimize SQLite queries
+        existing_devices = {
+            d.external_id: d for d in self.db.scalars(
+                select(Device).where(Device.account_id == account.id)
+            ).all()
+        }
 
-                device_payload, config_payload = await asyncio.gather(get_devices(), get_config())
-                    
-                return {
-                    "agent": agent,
-                    "agent_id": agent_id,
-                    "devices": device_payload,
-                    "config": config_payload
-                }
-
-        tasks = [fetch_detail_and_config(agent) for agent in all_agents]
-        results = await asyncio.gather(*tasks)
-        
         # 3. Update Database
         synced_count = 0
-        for item in results:
-            if not item:
+        for agent in all_agents:
+            agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
+            if not agent_id:
                 continue
                 
-            agent = item["agent"]
-            agent_id = item["agent_id"]
-            devices_data = item["devices"]
-            config_data = item["config"]
-            
-            # Extract device list
+            # Extract device items (fallback to lastDevice or placeholder)
             device_items = []
-            if devices_data:
-                if isinstance(devices_data, list):
-                    device_items = devices_data
-                elif isinstance(devices_data, dict):
-                    data_field = devices_data.get("data", [])
-                    if isinstance(data_field, list):
-                        device_items = data_field
-                    elif isinstance(data_field, dict):
-                        device_items = data_field.get("items", []) or data_field.get("list", [])
-            
-            # Fallback to lastDevice if no devices listed
-            if not device_items and isinstance(agent.get("lastDevice"), dict):
+            if isinstance(agent.get("devices"), list):
+                device_items = agent["devices"]
+            elif isinstance(agent.get("lastDevice"), dict):
                 device_items = [agent["lastDevice"]]
                 
-            # If still empty, create a placeholder device based on agent
             if not device_items:
                 device_items = [{"id": f"agent-{agent_id}", "name": agent.get("name")}]
 
@@ -183,50 +135,30 @@ class XiaozhiService:
                 
                 name = dev.get("alias") or dev.get("name") or agent.get("agent_name") or agent.get("name") or f"Loa {mac[-5:].replace(':', '') if mac else raw_device_id[-4:]}"
                 
-                # Extract AI Config from config call or fallback
-                lang = "en"
-                voice = ""
-                character = ""
-                asr_speed = "normal"
-                tts_speed = "normal"
-                pitch = 0
-                endpoints = ["2", "104"]
-                model = "qwen"
+                # Extract AI Config from agent properties directly
+                lang = agent.get("language") or agent.get("lang") or "en"
+                voice = agent.get("tts_voice") or agent.get("voice") or ""
+                character = agent.get("character") or ""
+                asr_speed = agent.get("asr_speed") or "slow"
+                tts_speed = agent.get("tts_speech_speed") or agent.get("tts_speed") or "normal"
+                pitch = agent.get("tts_pitch") if agent.get("tts_pitch") is not None else 0
+                model = agent.get("llm_model") or agent.get("llmModel") or agent.get("model") or "qwen"
                 
-                if config_data and isinstance(config_data, dict):
-                    c_data = config_data.get("data", config_data)
-                    lang = c_data.get("language") or c_data.get("lang") or "en"
-                    voice = c_data.get("tts_voice") or c_data.get("voice") or ""
-                    character = c_data.get("character") or ""
-                    asr_speed = c_data.get("asr_speed") or "normal"
-                    tts_speed = c_data.get("tts_speech_speed") or "normal"
-                    pitch = c_data.get("tts_pitch") if c_data.get("tts_pitch") is not None else 0
-                    model = c_data.get("llm_model") or c_data.get("llmModel") or c_data.get("model") or "qwen"
-                    if isinstance(c_data.get("mcp_endpoints"), list):
-                        endpoints = c_data.get("mcp_endpoints")
-                else:
-                    lang = agent.get("language") or agent.get("lang") or "en"
-                    voice = agent.get("tts_voice") or agent.get("voice") or ""
-                    character = agent.get("character") or ""
-                    asr_speed = agent.get("asr_speed") or "normal"
-                    tts_speed = agent.get("tts_speech_speed") or agent.get("tts_speed") or "normal"
-                    pitch = agent.get("tts_pitch") if agent.get("tts_pitch") is not None else 0
-                    model = agent.get("llm_model") or agent.get("llmModel") or agent.get("model") or "qwen"
-                    if isinstance(agent.get("mcp_endpoints"), list):
-                        endpoints = agent.get("mcp_endpoints")
+                endpoints = ["2", "104"]
+                if isinstance(agent.get("mcp_endpoints"), list):
+                    endpoints = agent.get("mcp_endpoints")
                     
-                # Find/Create in DB
-                db_device = self.db.scalar(
-                    select(Device).where(Device.external_id == raw_device_id)
-                )
+                # Find/Create in DB using our dictionary cache
+                db_device = existing_devices.get(raw_device_id)
                 if not db_device:
                     db_device = Device(external_id=raw_device_id)
                     self.db.add(db_device)
+                    existing_devices[raw_device_id] = db_device
                 synced_devices.append(db_device)
                 
                 db_device.name = name
                 db_device.status = status
-                db_device.mac_address = mac or db_device.mac_address or f"00:11:22:33:AA:{synced_count:02X}" # fallback fake mac for QR scanner demo
+                db_device.mac_address = mac or db_device.mac_address or f"00:11:22:33:AA:{synced_count:02X}"
                 db_device.current_language = lang
                 db_device.current_voice = voice
                 db_device.ai_prompt_template = character
