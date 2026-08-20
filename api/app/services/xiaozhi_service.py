@@ -123,25 +123,65 @@ class XiaozhiService:
         if not all_agents:
             return 0
 
-        # 2. Batch query all existing devices for this account to optimize SQLite queries
+        # 2. Fetch Devices Details in Parallel (only for agents with bound devices)
+        sem = asyncio.Semaphore(45)
+        agent_device_data = {}
+
+        async def fetch_devices_for_agent(agent):
+            agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
+            if not agent_id:
+                return
+            
+            # Only fetch if deviceCount > 0 or lastDevice is present
+            has_device = (agent.get("deviceCount") or 0) > 0 or agent.get("lastDevice") is not None
+            if not has_device:
+                return
+
+            async with sem:
+                url = f"https://xiaozhi.me/api/agents/{agent_id}/devices"
+                try:
+                    res = await client.get(url, headers=headers, timeout=8.0)
+                    if res.status_code == 200:
+                        agent_device_data[agent_id] = res.json()
+                except Exception as ex:
+                    logger.warning(f"Failed to fetch devices for agent {agent_id}: {ex}")
+
+        tasks = [fetch_devices_for_agent(agent) for agent in all_agents]
+        await asyncio.gather(*tasks)
+
+        # 3. Batch query all existing devices for this account to optimize SQLite queries
         existing_devices = {
             d.external_id: d for d in self.db.scalars(
                 select(Device).where(Device.account_id == account.id)
             ).all()
         }
 
-        # 3. Update Database
+        # 4. Update Database
         synced_count = 0
         for agent in all_agents:
             agent_id = str(agent.get("id") or agent.get("agentId") or agent.get("uuid") or "")
             if not agent_id:
                 continue
                 
-            # Extract device items (fallback to lastDevice or placeholder)
+            # Extract device items from parallel fetch results or fallback to lastDevice or placeholder
+            devices_payload = agent_device_data.get(agent_id)
             device_items = []
-            if isinstance(agent.get("devices"), list):
-                device_items = agent["devices"]
-            elif isinstance(agent.get("lastDevice"), dict):
+            
+            if devices_payload:
+                # Handle different formats returned by /devices API
+                if isinstance(devices_payload, list):
+                    device_items = devices_payload
+                elif isinstance(devices_payload, dict):
+                    data_field = devices_payload.get("data")
+                    if isinstance(data_field, list):
+                        device_items = data_field
+                    elif isinstance(data_field, dict):
+                        device_items = data_field.get("items") or data_field.get("list") or [data_field]
+                    else:
+                        device_items = devices_payload.get("items") or devices_payload.get("list") or []
+            
+            # Fallback to lastDevice if no devices listed
+            if not device_items and isinstance(agent.get("lastDevice"), dict):
                 device_items = [agent["lastDevice"]]
                 
             if not device_items:
