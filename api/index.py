@@ -605,14 +605,57 @@ async def get_xiaozhi_voices(db: Session = Depends(get_db)):
                         parsed_voices[l] = list(vs)
                         found_langs.add(l)
 
+                    chinese_voice_translations = {
+                        "湾湾小何": "Taiwanese Xiao He",
+                        "湾湾小何 v2": "Taiwanese Xiao He v2",
+                        "邻家女孩": "Girl Next Door",
+                        "vivi": "Vivi",
+                        "鸡汤女": "Chicken Soup Lady",
+                        "黑猫侦探社咪仔": "Black Cat Detective Mizai",
+                        "大壹": "Da Yi",
+                        "天才同桌": "Genius Classmate",
+                        "渊博小叔": "Knowledgeable Uncle",
+                        "阳光青年": "Sunny Youth",
+                        "湾区大叔": "Bay Area Uncle",
+                        "呆萌川妹": "Cute Sichuan Girl",
+                        "广州德哥": "Guangzhou Brother De",
+                        "北京小爷": "Beijing Young Master",
+                        "浩宇小哥": "Brother Haoyu",
+                        "广西远舟": "Guangxi Yuanzhou",
+                        "妹坨洁儿": "Sister Jie'er",
+                        "豫州子轩": "Yuzhou Zixuan",
+                        "高冷御姐": "Cool Mature Female",
+                        "傲娇霸总": "Tsundere Boss",
+                        "魅力女友": "Charming Girlfriend",
+                        "深夜播客": "Late Night Podcast",
+                        "柔美女友": "Gentle Girlfriend",
+                        "撒娇学妹": "Cute Junior Girl",
+                        "龙娘": "Dragon Girl",
+                        "甜心女友": "Sweetheart Girlfriend",
+                        "磁性大叔": "Magnetic Uncle",
+                        "元气少女": "Energetic Girl",
+                        "温柔学姐": "Gentle Senior Girl",
+                        "知性姐姐": "Intellectual Sister",
+                        "甜美学妹": "Sweet Junior Girl",
+                        "霸道总裁": "Dominant President",
+                        "温柔奶爸": "Gentle Father",
+                        "热血少年": "Passionate Teenager",
+                        "冷酷杀手": "Cold Killer",
+                        "风流才子": "Talented Scholar",
+                        "俏皮萝莉": "Playful Lolita"
+                    }
+
                     for item in tts_list:
                         voice_id = item.get("voice_id")
-                        name = item.get("name")
+                        raw_name = item.get("name") or ""
                         langs = item.get("languages") or []
                         tags = item.get("tags") or []
                         
-                        if not voice_id or not name:
+                        if not voice_id or not raw_name:
                             continue
+                            
+                        # Translate if name is Chinese
+                        name = item.get("i18n_name", {}).get("en") or chinese_voice_translations.get(raw_name) or raw_name
                             
                         gender_text = "Chung"
                         if any(t in tags for t in ["female", "girl", "woman"]):
