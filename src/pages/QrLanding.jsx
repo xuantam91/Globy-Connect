@@ -67,6 +67,39 @@ export default function QrLanding() {
   const [contributorName, setContributorName] = useState('');
   const [showDetailSettings, setShowDetailSettings] = useState(false);
 
+  const [languages, setLanguages] = useState([
+    { code: 'vi', name: 'Tiếng Việt' }, { code: 'en', name: 'Tiếng Anh' },
+    { code: 'zh', name: 'Tiếng Trung' }, { code: 'ja', name: 'Tiếng Nhật' }
+  ]);
+  const [voices, setVoices] = useState({
+    vi: [{ id: 'vi-VN-HoaiMyNeural', name: 'Hoài Mỹ (Nữ)' }, { id: 'vi-VN-NamMinhNeural', name: 'Nam Minh (Nam)' }],
+    en: [
+      { id: 'zh_female_shuangkuaisisi_moon_bigtts', name: 'Skye (Nữ)' },
+      { id: 'zh_male_jingqiangkanye_moon_bigtts', name: 'Harmony (Nam)' },
+      { id: 'zh_female_mengyatou_mars_bigtts', name: 'Cutey (Trẻ em)' },
+      { id: 'zh_male_shaonianzixin_moon_bigtts', name: 'Brayan (Thiếu niên)' },
+      { id: 'zh_male_wennuanahu_moon_bigtts', name: 'Alvin (Nam)' }
+    ],
+    zh: [{ id: 'zh_female_wanwanxiaohe_moon_bigtts', name: '湾湾小何 (Nữ)' }, { id: 'zh_female_linjianvhai_moon_bigtts', name: '邻家女孩 (Nữ)' }],
+    ja: [{ id: 'ja_female_1_v1', name: 'Sakura (Nữ)' }, { id: 'ja_male_1_v1', name: 'Kenji (Nam)' }]
+  });
+
+  useEffect(() => {
+    const fetchVoices = async () => {
+      try {
+        const res = await fetch('/api/voices');
+        const data = await res.json();
+        if (data.success) {
+          if (data.languages) setLanguages(data.languages);
+          if (data.voices) setVoices(data.voices);
+        }
+      } catch (err) {
+        console.error('Failed to fetch voices:', err);
+      }
+    };
+    fetchVoices();
+  }, []);
+
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
@@ -190,22 +223,7 @@ export default function QrLanding() {
     { id: 'doubao', name: 'DouBao Seed 2.0' },
     { id: 'gpt-5', name: 'GPT-5' }
   ];
-  const languages = [
-    { code: 'vi', name: 'Tiếng Việt' }, { code: 'en', name: 'Tiếng Anh' },
-    { code: 'zh', name: 'Tiếng Trung' }, { code: 'ja', name: 'Tiếng Nhật' }
-  ];
-  const voices = {
-    vi: [{ id: 'vi-VN-HoaiMyNeural', name: 'Hoài Mỹ (Nữ)' }, { id: 'vi-VN-NamMinhNeural', name: 'Nam Minh (Nam)' }],
-    en: [
-      { id: 'zh_female_shuangkuaisisi_moon_bigtts', name: 'Skye (Female)' },
-      { id: 'zh_male_jingqiangkanye_moon_bigtts', name: 'Harmony (Male)' },
-      { id: 'zh_female_mengyatou_mars_bigtts', name: 'Cutey (Child)' },
-      { id: 'zh_male_shaonianzixin_moon_bigtts', name: 'Brayan (Teen)' },
-      { id: 'zh_male_wennuanahu_moon_bigtts', name: 'Alvin (Male)' }
-    ],
-    zh: [{ id: 'zh_female_wanwanxiaohe_moon_bigtts', name: '湾湾小何' }, { id: 'zh_female_linjianvhai_moon_bigtts', name: '邻家女孩' }],
-    ja: [{ id: 'ja_female_1_v1', name: 'Sakura (Nữ)' }, { id: 'ja_male_1_v1', name: 'Kenji (Nam)' }]
-  };
+
   const speedOptions = ['slow', 'normal', 'fast'];
   const pitchOptions = [-2, 0, 2];
 

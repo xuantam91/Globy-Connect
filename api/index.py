@@ -521,6 +521,147 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
     else:
         return {"success": False, "message": "Failed to push configuration to Xiaozhi API"}
 
+_voices_cache = None
+_voices_cache_time = 0
+
+@app.get("/api/voices")
+async def get_xiaozhi_voices(db: Session = Depends(get_db)):
+    global _voices_cache, _voices_cache_time
+    import time
+    import httpx
+    
+    current_time = time.time()
+    if _voices_cache and (current_time - _voices_cache_time < 3600):
+        return _voices_cache
+
+    default_languages = [
+        { "code": "vi", "name": "Tiếng Việt" },
+        { "code": "en", "name": "Tiếng Anh" },
+        { "code": "zh", "name": "Tiếng Trung" },
+        { "code": "ja", "name": "Tiếng Nhật" }
+    ]
+    default_voices = {
+        "vi": [
+            { "id": "vi-VN-HoaiMyNeural", "name": "Hoài Mỹ (Nữ)" },
+            { "id": "vi-VN-NamMinhNeural", "name": "Nam Minh (Nam)" }
+        ],
+        "en": [
+            { "id": "zh_female_shuangkuaisisi_moon_bigtts", "name": "Skye (Nữ)" },
+            { "id": "zh_male_jingqiangkanye_moon_bigtts", "name": "Harmony (Nam)" },
+            { "id": "zh_female_mengyatou_mars_bigtts", "name": "Cutey (Trẻ em)" },
+            { "id": "zh_male_shaonianzixin_moon_bigtts", "name": "Brayan (Thiếu niên)" },
+            { "id": "zh_male_wennuanahu_moon_bigtts", "name": "Alvin (Nam)" }
+        ],
+        "zh": [
+            { "id": "zh_female_wanwanxiaohe_moon_bigtts", "name": "湾湾小何 (Nữ)" },
+            { "id": "zh_female_linjianvhai_moon_bigtts", "name": "邻家女孩 (Nữ)" }
+        ],
+        "ja": [
+            { "id": "ja_female_1_v1", "name": "Sakura (Nữ)" },
+            { "id": "ja_male_1_v1", "name": "Kenji (Nam)" }
+        ]
+    }
+    fallback_response = {"success": True, "languages": default_languages, "voices": default_voices}
+
+    account = db.query(XiaozhiAccount).filter(XiaozhiAccount.is_active == True).first()
+    if not account or not account.bearer_token or account.bearer_token.startswith("mock"):
+        return fallback_response
+
+    headers = {
+        "Authorization": f"Bearer {account.bearer_token.strip()}",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0"
+    }
+
+    async with httpx.AsyncClient(timeout=8.0) as client:
+        try:
+            res = await client.get("https://xiaozhi.me/api/roles/tts-list", headers=headers)
+            if res.status_code == 200:
+                data = res.json()
+                tts_list = data.get("data", {}).get("ttsList") or []
+                if tts_list:
+                    lang_map = {
+                        "vi": "Tiếng Việt",
+                        "en": "Tiếng Anh",
+                        "zh": "Tiếng Trung",
+                        "ja": "Tiếng Nhật",
+                        "ko": "Tiếng Hàn",
+                        "fr": "Tiếng Pháp",
+                        "de": "Tiếng Đức",
+                        "es": "Tiếng Tây Ban Nha",
+                        "ru": "Tiếng Nga",
+                        "th": "Tiếng Thái",
+                        "it": "Tiếng Ý",
+                        "id": "Tiếng Indonesia",
+                        "hi": "Tiếng Ấn Độ",
+                        "ar": "Tiếng Ả Rập",
+                        "pt": "Tiếng Bồ Đào Nha",
+                        "tr": "Tiếng Thổ Nhĩ Kỳ",
+                    }
+                    parsed_voices = {}
+                    found_langs = set()
+
+                    for l, vs in default_voices.items():
+                        parsed_voices[l] = list(vs)
+                        found_langs.add(l)
+
+                    for item in tts_list:
+                        voice_id = item.get("voice_id")
+                        name = item.get("name")
+                        langs = item.get("languages") or []
+                        tags = item.get("tags") or []
+                        
+                        if not voice_id or not name:
+                            continue
+                            
+                        gender_text = "Chung"
+                        if any(t in tags for t in ["female", "girl", "woman"]):
+                            gender_text = "Nữ"
+                        elif any(t in tags for t in ["male", "boy", "man"]):
+                            gender_text = "Nam"
+                            
+                        for lang in langs:
+                            if not lang:
+                                continue
+                            lang = lang.lower().strip()
+                            if lang not in parsed_voices:
+                                parsed_voices[lang] = []
+                            if not any(v["id"] == voice_id for v in parsed_voices[lang]):
+                                parsed_voices[lang].append({
+                                    "id": voice_id,
+                                    "name": f"{name} ({gender_text})"
+                                })
+                                found_langs.add(lang)
+
+                    sorted_langs = []
+                    primary_codes = ["vi", "en", "zh", "ja"]
+                    for code in primary_codes:
+                        if code in found_langs:
+                            sorted_langs.append({
+                                "code": code,
+                                "name": lang_map.get(code) or code.upper()
+                            })
+                    
+                    other_codes = sorted(list(found_langs - set(primary_codes)))
+                    for code in other_codes:
+                        sorted_langs.append({
+                            "code": code,
+                            "name": lang_map.get(code) or f"Tiếng {code.upper()}"
+                        })
+
+                    result = {
+                        "success": True,
+                        "languages": sorted_langs,
+                        "voices": parsed_voices
+                    }
+                    _voices_cache = result
+                    _voices_cache_time = current_time
+                    return result
+        except Exception as e:
+            logger.warning(f"Error fetching voices from Xiaozhi API: {e}")
+            
+    return fallback_response
+
 # Presets APIs
 @app.get("/api/presets")
 def get_presets(db: Session = Depends(get_db)):
