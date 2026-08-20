@@ -29,7 +29,7 @@ class Device(Base):
     llm_model = Column(String(100), default="qwen")
     
     # New audio settings and extensions
-    asr_speed = Column(String(50), default="normal")
+    asr_speed = Column(String(50), default="slow")
     tts_speech_speed = Column(String(50), default="normal")
     tts_pitch = Column(Integer, default=0)
     mcp_endpoints_json = Column(Text, default="[\"2\", \"104\"]")
@@ -57,7 +57,7 @@ class Preset(Base):
     language = Column(String(50), default="en")
     tts_voice = Column(String(100), nullable=True)
     tts_speech_speed = Column(String(50), default="normal")
-    asr_speed = Column(String(50), default="normal")
+    asr_speed = Column(String(50), default="slow")
     tts_pitch = Column(Integer, default=0)
     mcp_endpoints_json = Column(Text, default="[\"2\", \"104\"]")
     character_prompt = Column(Text, nullable=True)

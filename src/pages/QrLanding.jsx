@@ -54,7 +54,7 @@ export default function QrLanding() {
   const [language, setLanguage] = useState('en');
   const [ttsVoice, setTtsVoice] = useState('zh_female_shuangkuaisisi_moon_bigtts');
   const [ttsSpeechSpeed, setTtsSpeechSpeed] = useState('normal');
-  const [asrSpeed, setAsrSpeed] = useState('normal');
+  const [asrSpeed, setAsrSpeed] = useState('slow');
   const [ttsPitch, setTtsPitch] = useState(0);
   const [extensions, setExtensions] = useState(['2', '104']);
   const [characterPrompt, setCharacterPrompt] = useState('');
@@ -78,7 +78,7 @@ export default function QrLanding() {
         setLanguage(activePreset.language || 'en');
         setTtsVoice(activePreset.tts_voice || '');
         setTtsSpeechSpeed(activePreset.tts_speech_speed || 'normal');
-        setAsrSpeed(activePreset.asr_speed || 'normal');
+        setAsrSpeed(activePreset.asr_speed || 'slow');
         setTtsPitch(activePreset.tts_pitch ?? 0);
         setExtensions(activePreset.mcp_endpoints || ['2', '104']);
         setCharacterPrompt(activePreset.character || '');

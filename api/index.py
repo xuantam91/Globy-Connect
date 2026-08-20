@@ -63,6 +63,19 @@ app.add_middleware(
 def seed_database():
     db = next(get_db())
     try:
+        # Migrate existing presets and devices with 'normal' asr_speed to 'slow'
+        db.execute(
+            Preset.__table__.update()
+            .where(Preset.asr_speed == "normal")
+            .values(asr_speed="slow")
+        )
+        db.execute(
+            Device.__table__.update()
+            .where(Device.asr_speed == "normal")
+            .values(asr_speed="slow")
+        )
+        db.commit()
+
         preset_count = db.scalar(select(func.count(Preset.id)))
         if preset_count == 0:
             default_presets = [
@@ -73,7 +86,7 @@ def seed_database():
                     language="en",
                     tts_voice="zh_female_mengyatou_mars_bigtts",
                     tts_speech_speed="normal",
-                    asr_speed="normal",
+                    asr_speed="slow",
                     tts_pitch=0,
                     mcp_endpoints_json='["2", "104"]',
                     character_prompt="You are Lily, a kind and patient English teacher for children. Help children learn English in a fun way.",
@@ -86,7 +99,7 @@ def seed_database():
                     language="vi",
                     tts_voice="vi-VN-HoaiMyNeural",
                     tts_speech_speed="normal",
-                    asr_speed="normal",
+                    asr_speed="slow",
                     tts_pitch=0,
                     mcp_endpoints_json='["2", "104"]',
                     character_prompt="Bạn là Thỏ Ngọc, người bạn kể chuyện cổ tích cực kỳ truyền cảm, ấm áp cho trẻ em Việt Nam.",
@@ -99,7 +112,7 @@ def seed_database():
                     language="vi",
                     tts_voice="vi-VN-NamMinhNeural",
                     tts_speech_speed="normal",
-                    asr_speed="normal",
+                    asr_speed="slow",
                     tts_pitch=0,
                     mcp_endpoints_json='["2", "104"]',
                     character_prompt="Bạn là gia sư toán học Cú Thông Thái. Hãy kiên nhẫn giảng giải các phép tính đố vui tiểu học cho trẻ.",
@@ -154,7 +167,7 @@ class PresetCreate(BaseModel):
     language: str
     tts_voice: str
     tts_speech_speed: str = "normal"
-    asr_speed: str = "normal"
+    asr_speed: str = "slow"
     tts_pitch: int = 0
     mcp_endpoints: List[str] = ["2", "104"]
     character_prompt: str
@@ -390,7 +403,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
             raise HTTPException(status_code=400, detail="Missing required custom configuration fields")
             
         mcp_endpoints = qr.mcp_endpoints if qr.mcp_endpoints is not None else ["2", "104"]
-        asr_speed = qr.asr_speed or "normal"
+        asr_speed = qr.asr_speed or "slow"
         tts_speech_speed = qr.tts_speech_speed or "normal"
         tts_pitch = qr.tts_pitch if qr.tts_pitch is not None else 0
         
@@ -464,7 +477,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
                     "language": "vi",
                     "tts_voice": "vi-VN-HoaiMyNeural", # Hoai My
                     "tts_speech_speed": "normal",
-                    "asr_speed": "normal",
+                    "asr_speed": "slow",
                     "tts_pitch": 0,
                     "mcp_endpoints": ["2", "104"],
                     "character": "Bạn là cô tiên kể chuyện cổ tích. Giọng nói của bạn ấm áp và lôi cuốn.\nHãy kể những câu chuyện cổ tích Việt Nam ngắn gọn cho trẻ em nghe."
@@ -474,7 +487,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
                     "language": "en",
                     "tts_voice": "zh_male_wennuanahu_moon_bigtts", # Alvin
                     "tts_speech_speed": "normal",
-                    "asr_speed": "normal",
+                    "asr_speed": "slow",
                     "tts_pitch": 0,
                     "mcp_endpoints": ["2", "104"],
                     "character": "You are a bilingual English-Vietnamese AI tutor. You translate phrases and answer science/history questions simply for kids in both languages."
@@ -1032,7 +1045,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
         lang = default_preset.language or "vi"
         voice = default_preset.tts_voice or "vi-VN-HoaiMyNeural"
         character = default_preset.character_prompt or "Bạn là trợ lý đắc lực của bé..."
-        asr_speed = default_preset.asr_speed or "normal"
+        asr_speed = default_preset.asr_speed or "slow"
         tts_speech_speed = default_preset.tts_speech_speed or "normal"
         tts_pitch = default_preset.tts_pitch or 0
         mcp_endpoints = json.loads(default_preset.mcp_endpoints_json) if default_preset.mcp_endpoints_json else ["2", "104"]
@@ -1041,7 +1054,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
         lang = "vi"
         voice = "vi-VN-HoaiMyNeural"
         character = "Bạn là trợ lý đắc lực của bé..."
-        asr_speed = "normal"
+        asr_speed = "slow"
         tts_speech_speed = "normal"
         tts_pitch = 0
         mcp_endpoints = ["2", "104"]

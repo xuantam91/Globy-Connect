@@ -54,7 +54,7 @@ export default function AdminDashboard() {
   const [presetLanguage, setPresetLanguage] = useState('en');
   const [presetTtsVoice, setPresetTtsVoice] = useState('zh_female_shuangkuaisisi_moon_bigtts');
   const [presetTtsSpeechSpeed, setPresetTtsSpeechSpeed] = useState('normal');
-  const [presetAsrSpeed, setPresetAsrSpeed] = useState('normal');
+  const [presetAsrSpeed, setPresetAsrSpeed] = useState('slow');
   const [presetTtsPitch, setPresetTtsPitch] = useState(0);
   const [presetExtensions, setPresetExtensions] = useState(['2', '104']);
   const [presetCharacterPrompt, setPresetCharacterPrompt] = useState('You are Lily, a friendly teacher...');
@@ -70,7 +70,7 @@ export default function AdminDashboard() {
   const [ttsSpeechSpeed, setTtsSpeechSpeed] = useState('normal'); // slow | normal | fast
   
   // Voice Settings (Sliders)
-  const [asrSpeed, setAsrSpeed] = useState('normal'); // slow | normal | fast
+  const [asrSpeed, setAsrSpeed] = useState('slow'); // slow | normal | fast
   const [ttsPitch, setTtsPitch] = useState(0); // -2 (Low), 0 (Standard), 2 (High)
   const [showVoiceSettings, setShowVoiceSettings] = useState(true);
 
@@ -106,7 +106,7 @@ export default function AdminDashboard() {
         setLanguage(d.current_language || 'en');
         setTtsVoice(d.current_voice || '');
         setTtsSpeechSpeed(d.tts_speech_speed || 'normal');
-        setAsrSpeed(d.asr_speed || 'normal');
+        setAsrSpeed(d.asr_speed || 'slow');
         setTtsPitch(d.tts_pitch !== undefined ? d.tts_pitch : 0);
         
         let mcpList = ['2', '104'];
@@ -442,7 +442,7 @@ export default function AdminDashboard() {
     // We set voice list matching
     const voiceList = voices[p.language] || [];
     setPresetTtsVoice(p.tts_voice || (voiceList.length > 0 ? voiceList[0].id : ''));
-    setPresetAsrSpeed(p.asr_speed || 'normal');
+    setPresetAsrSpeed(p.asr_speed || 'slow');
     setPresetTtsSpeechSpeed(p.tts_speech_speed || 'normal');
     setPresetTtsPitch(p.tts_pitch ?? 0);
     setPresetGender(p.gender || 'neutral');
