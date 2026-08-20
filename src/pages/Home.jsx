@@ -16,6 +16,7 @@ export default function Home() {
   const [newDeviceName, setNewDeviceName] = useState('');
   const [configInput, setConfigInput] = useState('');
   const [activationError, setActivationError] = useState(null);
+  const [activating, setActivating] = useState(false);
   
   // Modals / Scanner state
   const [showAdminLogin, setShowAdminLogin] = useState(false);
@@ -193,6 +194,19 @@ export default function Home() {
     }
   };
 
+  const handleResetForm = () => {
+    setActivationDigits(['', '', '', '', '', '']);
+    setActivationError(null);
+    setIsSpeaking(false);
+    setIsSpeakerPulsing(false);
+    
+    // Auto-focus the first cell
+    setTimeout(() => {
+      const firstInput = document.getElementById('digit-input-0');
+      if (firstInput) firstInput.focus();
+    }, 50);
+  };
+
   const handleActivateDevice = async () => {
     const cleanCode = activationDigits.join('').trim();
     if (!cleanCode || cleanCode.length !== 6 || !/^\d+$/.test(cleanCode)) {
@@ -200,6 +214,7 @@ export default function Home() {
       return;
     }
     setActivationError(null);
+    setActivating(true);
     try {
       const res = await fetch('/api/devices/activate', {
         method: 'POST',
@@ -221,6 +236,8 @@ export default function Home() {
       }
     } catch (err) {
       setActivationError("Lỗi kết nối khi gửi yêu cầu kích hoạt.");
+    } finally {
+      setActivating(false);
     }
   };
 
@@ -354,6 +371,11 @@ export default function Home() {
           0% { top: 0%; }
           50% { top: 100%; }
           100% { top: 0%; }
+        }
+        @keyframes pulseProgress {
+          0% { left: -30%; width: 30%; }
+          50% { width: 40%; }
+          100% { left: 100%; width: 30%; }
         }
         .spin {
           animation: spin 1s linear infinite;
@@ -671,50 +693,10 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Prominent Kid-Friendly Alert Banner with TTS guidance */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(16,185,129,0.15))',
-              border: '1px solid rgba(99,102,241,0.25)',
-              padding: '12px 16px',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              marginBottom: '8px',
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: '1.45', flex: 1, fontWeight: 550 }}>
-                🔔 Nhập đúng 6 chữ số đang hiển thị trên màn hình của loa để thực hiện liên kết kích hoạt.
-              </span>
-              <button 
-                onClick={handleSpeakerClick}
-                type="button"
-                title={isSpeaking ? "Ngưng đọc hướng dẫn" : "Đọc to hướng dẫn"}
-                style={{
-                  background: isSpeaking ? '#ef4444' : 'var(--primary)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '50%',
-                  width: '32px',
-                  height: '32px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 8px var(--primary-glow)',
-                  transition: 'all 0.3s ease',
-                  flexShrink: 0,
-                  animation: isSpeakerPulsing ? 'pulseGlow 1.2s infinite alternate' : 'none'
-                }}
-              >
-                <Volume2 size={16} />
-              </button>
-            </div>
-            
-            {activationError && (
+            {activationError ? (
               <div className="animated-fade-in" style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid #ef4444',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
                 padding: '12px 16px',
                 borderRadius: '12px',
                 color: '#ef4444',
@@ -725,9 +707,50 @@ export default function Home() {
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                marginBottom: '8px'
+                marginBottom: '16px',
+                boxShadow: '0 4px 12px rgba(239,68,68,0.08)'
               }}>
-                <span>⚠️ {activationError}</span>
+                <span style={{ fontSize: '1rem' }}>⚠️</span>
+                <span style={{ flex: 1 }}>{activationError}</span>
+              </div>
+            ) : (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(16,185,129,0.15))',
+                border: '1px solid rgba(99,102,241,0.25)',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '16px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+              }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)', lineHeight: '1.45', flex: 1, fontWeight: 550 }}>
+                  🔔 Nhập đúng 6 chữ số đang hiển thị trên màn hình của loa để thực hiện liên kết kích hoạt.
+                </span>
+                <button 
+                  onClick={handleSpeakerClick}
+                  type="button"
+                  title={isSpeaking ? "Ngưng đọc hướng dẫn" : "Đọc to hướng dẫn"}
+                  style={{
+                    background: isSpeaking ? '#ef4444' : 'var(--primary)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '32px',
+                    height: '32px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px var(--primary-glow)',
+                    transition: 'all 0.3s ease',
+                    flexShrink: 0,
+                    animation: isSpeakerPulsing ? 'pulseGlow 1.2s infinite alternate' : 'none'
+                  }}
+                >
+                  <Volume2 size={16} />
+                </button>
               </div>
             )}
 
@@ -750,6 +773,7 @@ export default function Home() {
                       value={digit}
                       onChange={e => handleDigitChange(idx, e.target.value)}
                       onKeyDown={e => handleDigitKeyDown(idx, e)}
+                      disabled={activating}
                       style={{
                         width: '100%',
                         height: '48px',
@@ -761,7 +785,8 @@ export default function Home() {
                         background: 'rgba(0,0,0,0.15)',
                         color: 'var(--text-primary)',
                         outline: 'none',
-                        transition: 'border-color 0.15s ease'
+                        transition: 'border-color 0.15s ease',
+                        opacity: activating ? 0.6 : 1
                       }}
                       onFocus={e => e.target.style.borderColor = 'var(--primary)'}
                       onBlur={e => e.target.style.borderColor = activationError ? '#ef4444' : 'var(--border-color)'}
@@ -778,16 +803,31 @@ export default function Home() {
                   placeholder="Ví dụ: Loa của bé, Loa phòng khách..."
                   value={newDeviceName}
                   onChange={e => setNewDeviceName(e.target.value)}
+                  disabled={activating}
                   style={{
                     padding: '12px',
                     fontSize: '0.9rem',
                     borderRadius: '10px',
                     border: '1px solid var(--border-color)',
                     background: 'rgba(0,0,0,0.15)',
-                    color: 'var(--text-primary)'
+                    color: 'var(--text-primary)',
+                    opacity: activating ? 0.6 : 1
                   }}
                 />
               </div>
+
+              {activating && (
+                <div style={{ width: '100%', height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden', marginTop: '4px', position: 'relative' }}>
+                  <div style={{
+                    height: '100%',
+                    background: 'linear-gradient(to right, #6366f1, #10b981)',
+                    width: '30%',
+                    borderRadius: '2px',
+                    position: 'absolute',
+                    animation: 'pulseProgress 1.5s infinite ease-in-out'
+                  }}></div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
                 <button 
@@ -795,7 +835,9 @@ export default function Home() {
                     setShowActivationModal(false);
                     setActivationDigits(['', '', '', '', '', '']);
                     setNewDeviceName('');
+                    setActivationError(null);
                   }}
+                  disabled={activating}
                   style={{
                     flex: 1,
                     padding: '12px',
@@ -804,25 +846,49 @@ export default function Home() {
                     color: 'var(--text-primary)',
                     border: 'none',
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: activating ? 'not-allowed' : 'pointer',
+                    opacity: activating ? 0.5 : 1
                   }}
                 >
                   Đóng lại
                 </button>
                 <button 
-                  onClick={handleActivateDevice}
+                  onClick={activationError ? handleResetForm : handleActivateDevice}
+                  disabled={activating}
                   style={{
                     flex: 1,
                     padding: '12px',
                     borderRadius: '10px',
-                    background: 'var(--secondary)',
+                    background: activating 
+                      ? 'linear-gradient(to right, #4b5563, #374151)'
+                      : activationError
+                        ? 'linear-gradient(to right, #f59e0b, #d97706)'
+                        : 'linear-gradient(to right, #10b981, #059669)',
                     color: 'white',
                     fontWeight: 600,
-                    boxShadow: '0 4px 15px var(--secondary-glow)',
-                    cursor: 'pointer'
+                    boxShadow: activating
+                      ? 'none'
+                      : activationError
+                        ? '0 4px 12px rgba(245,158,11,0.2)'
+                        : '0 4px 12px rgba(16,185,129,0.2)',
+                    cursor: activating ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    transition: 'all 0.3s ease'
                   }}
                 >
-                  Kích hoạt ngay
+                  {activating ? (
+                    <>
+                      <RefreshCw size={16} className="spin" />
+                      <span>Đang liên kết...</span>
+                    </>
+                  ) : activationError ? (
+                    <span>Nhập lại mã</span>
+                  ) : (
+                    <span>Kích hoạt ngay</span>
+                  )}
                 </button>
               </div>
             </div>
