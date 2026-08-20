@@ -6,7 +6,11 @@ import { Html5Qrcode } from 'html5-qrcode';
 
 export default function Home() {
   const navigate = useNavigate();
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    if (saved) return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
   
   // New user modals
   const [showActivationModal, setShowActivationModal] = useState(false);
@@ -33,8 +37,29 @@ export default function Home() {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-    localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Sync with system theme live changes if no user override is saved
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleSystemThemeChange = (e) => {
+      if (!localStorage.getItem('theme')) {
+        setTheme(e.matches ? 'dark' : 'light');
+      }
+    };
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleSystemThemeChange);
+    } else {
+      mediaQuery.addListener(handleSystemThemeChange);
+    }
+    return () => {
+      if (mediaQuery.removeEventListener) {
+        mediaQuery.removeEventListener('change', handleSystemThemeChange);
+      } else {
+        mediaQuery.removeListener(handleSystemThemeChange);
+      }
+    };
+  }, []);
 
   const speakGuidance = () => {
     if ('speechSynthesis' in window) {
@@ -154,7 +179,9 @@ export default function Home() {
   }, [showActivationModal]);
 
   const toggleTheme = () => {
-    setTheme(theme === 'dark' ? 'light' : 'dark');
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('theme', nextTheme);
   };
 
   const handleConnectMac = (macAddress) => {
