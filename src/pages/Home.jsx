@@ -1380,25 +1380,25 @@ export default function Home() {
                   />
                 )}
                 {wifiStepIndex === 1 && (
+                  <img 
+                    src="/image-guide/Step 2.jpg" 
+                    alt="Step 2" 
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+                  />
+                )}
+                {wifiStepIndex === 2 && (
                   <>
-                    <img 
-                      src="/image-guide/Step 2.jpg" 
-                      alt="Step 2" 
-                      style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px', maxWidth: '48%' }} 
-                    />
                     <img 
                       src="/image-guide/Step 3-1.jpg" 
                       alt="Step 3-1" 
                       style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px', maxWidth: '48%' }} 
                     />
+                    <img 
+                      src="/image-guide/Step 3-2.jpg" 
+                      alt="Step 3-2" 
+                      style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px', maxWidth: '48%' }} 
+                    />
                   </>
-                )}
-                {wifiStepIndex === 2 && (
-                  <img 
-                    src="/image-guide/Step 3-2.jpg" 
-                    alt="Step 3-2" 
-                    style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
-                  />
                 )}
                 {wifiStepIndex === 3 && (
                   <img 
