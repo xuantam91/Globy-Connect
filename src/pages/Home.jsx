@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cpu, User, Shield, Camera, Link, Moon, Sun, ArrowRight, Sparkles, RefreshCw, Key, Hash, Sliders, Volume2 } from 'lucide-react';
+import { Cpu, User, Shield, Camera, Link, Moon, Sun, ArrowRight, Sparkles, RefreshCw, Key, Hash, Sliders, Volume2, Wifi, Info, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 
@@ -13,8 +13,11 @@ export default function Home() {
   });
   
   // New user modals
+  const [showWifiModal, setShowWifiModal] = useState(false);
   const [showActivationModal, setShowActivationModal] = useState(false);
   const [showConfigModal, setShowConfigModal] = useState(false);
+  const [showFeaturesModal, setShowFeaturesModal] = useState(false);
+  const [wifiStepIndex, setWifiStepIndex] = useState(0);
   
   const [activationDigits, setActivationDigits] = useState(['', '', '', '', '', '']);
   const [newDeviceName, setNewDeviceName] = useState('');
@@ -34,6 +37,84 @@ export default function Home() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isSpeakerPulsing, setIsSpeakerPulsing] = useState(false);
   const [autoSpeakTimerId, setAutoSpeakTimerId] = useState(null);
+
+  useEffect(() => {
+    let intervalId;
+    if (showWifiModal) {
+      // Load YouTube Iframe API if not already present
+      if (!window.YT) {
+        const tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        const firstScriptTag = document.getElementsByTagName('script')[0];
+        if (firstScriptTag && firstScriptTag.parentNode) {
+          firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+        } else {
+          document.head.appendChild(tag);
+        }
+      }
+
+      // Initialize the YT Player when YT is ready
+      const initPlayer = () => {
+        if (window.YT && window.YT.Player) {
+          try {
+            const player = new window.YT.Player('wifiTutorialVideo', {
+              height: '100%',
+              width: '100%',
+              videoId: '7zajRupzURM',
+              playerVars: {
+                'playsinline': 1,
+                'rel': 0,
+                'enablejsapi': 1,
+                'modestbranding': 1
+              },
+              events: {
+                'onStateChange': (event) => {
+                  if (event.data === window.YT.PlayerState.PLAYING) {
+                    clearInterval(intervalId);
+                    intervalId = setInterval(() => {
+                      const time = player.getCurrentTime();
+                      let targetStep = 0;
+                      if (time >= 30) {
+                        targetStep = 3;
+                      } else if (time >= 20) {
+                        targetStep = 2;
+                      } else if (time >= 10) {
+                        targetStep = 1;
+                      } else {
+                        targetStep = 0;
+                      }
+                      setWifiStepIndex(targetStep);
+                    }, 500);
+                  } else {
+                    clearInterval(intervalId);
+                  }
+                }
+              }
+            });
+            window.wifiPlayer = player;
+          } catch (err) {
+            console.error("Lỗi khởi tạo YouTube player:", err);
+          }
+        } else {
+          setTimeout(initPlayer, 100);
+        }
+      };
+
+      setTimeout(initPlayer, 200);
+    }
+
+    return () => {
+      clearInterval(intervalId);
+      if (window.wifiPlayer && typeof window.wifiPlayer.destroy === 'function') {
+        try {
+          window.wifiPlayer.destroy();
+        } catch (destroyErr) {
+          console.error("Lỗi destroy YouTube player:", destroyErr);
+        }
+        window.wifiPlayer = null;
+      }
+    };
+  }, [showWifiModal]);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -93,6 +174,18 @@ export default function Home() {
       stopGuidance();
     } else {
       speakGuidance();
+    }
+  };
+
+  const handleWifiStepChange = (newIdx) => {
+    if (newIdx < 0 || newIdx > 3) return;
+    setWifiStepIndex(newIdx);
+    if (window.wifiPlayer && typeof window.wifiPlayer.seekTo === 'function') {
+      try {
+        window.wifiPlayer.seekTo(newIdx * 10, true);
+      } catch (err) {
+        console.error("Lỗi seek YouTube video:", err);
+      }
     }
   };
 
@@ -480,25 +573,59 @@ export default function Home() {
           </span>
         </div>
 
-        {/* Theme toggle button */}
-        <button 
-          onClick={toggleTheme} 
-          style={{
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            padding: '10px',
-            borderRadius: '50%',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-          }}
-          title={theme === 'dark' ? 'Chuyển sang chế độ Sáng' : 'Chuyển sang chế độ Tối'}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
+        {/* Actions bar (Admin + Theme) */}
+        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          {/* Admin login button */}
+          <button 
+            onClick={() => {
+              const token = localStorage.getItem('admin_token');
+              if (token === 'xiaozhi-admin-session-token') {
+                navigate('/admin');
+              } else {
+                setShowAdminLogin(true);
+              }
+            }}
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              padding: '10px 16px',
+              borderRadius: '20px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              transition: 'all 0.2s ease'
+            }}
+            title="Đăng nhập trang quản trị"
+          >
+            <Shield size={16} style={{ color: '#6366f1' }} />
+            <span>Quản trị viên</span>
+          </button>
+
+          {/* Theme toggle button */}
+          <button 
+            onClick={toggleTheme} 
+            style={{
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              padding: '10px',
+              borderRadius: '50%',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+            title={theme === 'dark' ? 'Chuyển sang chế độ Sáng' : 'Chuyển sang chế độ Tối'}
+          >
+            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -543,15 +670,15 @@ export default function Home() {
         {/* Portal Selection Cards */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: '24px',
           width: '100%',
-          maxWidth: '800px'
+          maxWidth: '1000px'
         }}>
           
-          {/* Card 1: Kích hoạt loa mới */}
+          {/* Card 1: Kết nối Wi-Fi */}
           <div className="glass-panel" style={{
-            padding: '28px 24px',
+            padding: '28px 20px',
             borderRadius: '20px',
             display: 'flex',
             flexDirection: 'column',
@@ -571,14 +698,14 @@ export default function Home() {
               justifyContent: 'center',
               margin: '0 auto 16px'
             }}>
-              <Key size={24} style={{ color: 'var(--secondary)' }} />
+              <Wifi size={24} style={{ color: '#10b981' }} />
             </div>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Kích hoạt loa mới</h3>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Kết nối Wi-Fi</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '20px', flex: 1 }}>
-              Kết nối Wi-Fi cho loa và nhập dãy 6 chữ số hiển thị để kích hoạt sử dụng.
+              Xem hướng dẫn chi tiết bằng hình ảnh và video để thiết lập mạng Wi-Fi cho Loa Globy.
             </p>
             <button 
-              onClick={() => setShowActivationModal(true)}
+              onClick={() => setShowWifiModal(true)}
               style={{
                 background: 'linear-gradient(to right, #10b981, #059669)',
                 color: 'white',
@@ -591,13 +718,59 @@ export default function Home() {
                 cursor: 'pointer'
               }}
             >
+              Hướng dẫn kết nối
+            </button>
+          </div>
+
+          {/* Card 2: Kích hoạt loa */}
+          <div className="glass-panel" style={{
+            padding: '28px 20px',
+            borderRadius: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            border: '2px solid rgba(5, 150, 105, 0.15)',
+            position: 'relative',
+            overflow: 'hidden',
+            textAlign: 'center'
+          }}>
+            <div style={{
+              background: 'rgba(5, 150, 105, 0.1)',
+              width: '48px',
+              height: '48px',
+              borderRadius: '14px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <Key size={24} style={{ color: 'var(--secondary)' }} />
+            </div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Kích hoạt loa</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '20px', flex: 1 }}>
+              Nhập dãy 6 chữ số hiển thị trên màn hình loa để thực hiện liên kết kích hoạt thiết bị.
+            </p>
+            <button 
+              onClick={() => setShowActivationModal(true)}
+              style={{
+                background: 'linear-gradient(to right, #059669, #047857)',
+                color: 'white',
+                padding: '12px',
+                borderRadius: '10px',
+                fontWeight: 700,
+                fontSize: '0.88rem',
+                width: '100%',
+                boxShadow: '0 4px 12px rgba(5,150,105,0.15)',
+                cursor: 'pointer'
+              }}
+            >
               Kích hoạt ngay
             </button>
           </div>
 
-          {/* Card 2: Thay đổi cấu hình */}
+          {/* Card 3: Thay đổi cấu hình */}
           <div className="glass-panel" style={{
-            padding: '28px 24px',
+            padding: '28px 20px',
             borderRadius: '20px',
             display: 'flex',
             flexDirection: 'column',
@@ -641,20 +814,20 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Card 3: Quản trị hệ thống */}
+          {/* Card 4: Các tính năng chính */}
           <div className="glass-panel" style={{
-            padding: '28px 24px',
+            padding: '28px 20px',
             borderRadius: '20px',
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            border: '2px solid var(--border-color)',
+            border: '2px solid rgba(139, 92, 246, 0.15)',
             position: 'relative',
             overflow: 'hidden',
             textAlign: 'center'
           }}>
             <div style={{
-              background: 'rgba(255, 255, 255, 0.05)',
+              background: 'rgba(139, 92, 246, 0.1)',
               width: '48px',
               height: '48px',
               borderRadius: '14px',
@@ -663,34 +836,27 @@ export default function Home() {
               justifyContent: 'center',
               margin: '0 auto 16px'
             }}>
-              <Shield size={24} style={{ color: 'var(--text-primary)' }} />
+              <Sparkles size={24} style={{ color: '#8b5cf6' }} />
             </div>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Quản trị viên</h3>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Tính năng chính</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '20px', flex: 1 }}>
-              Đăng nhập trang quản trị để đồng bộ danh sách, cài đặt nâng cao và nạp Preset mẫu.
+              Khám phá các tính năng chính của loa như AI đa ngôn ngữ, nhạc thẻ nhớ, đài radio, giải toán...
             </p>
             <button 
-              onClick={() => {
-                const token = localStorage.getItem('admin_token');
-                if (token === 'xiaozhi-admin-session-token') {
-                  navigate('/admin');
-                } else {
-                  setShowAdminLogin(true);
-                }
-              }}
+              onClick={() => setShowFeaturesModal(true)}
               style={{
-                background: 'transparent',
-                color: 'var(--text-primary)',
-                border: '1px solid var(--border-color)',
+                background: 'linear-gradient(to right, #8b5cf6, #7c3aed)',
+                color: 'white',
                 padding: '12px',
                 borderRadius: '10px',
                 fontWeight: 700,
                 fontSize: '0.88rem',
                 width: '100%',
+                boxShadow: '0 4px 12px rgba(139,92,246,0.15)',
                 cursor: 'pointer'
               }}
             >
-              Đăng nhập
+              Khám phá ngay
             </button>
           </div>
 
@@ -1092,6 +1258,370 @@ export default function Home() {
               </div>
 
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* WI-FI CONNECTION GUIDE MODAL */}
+      {showWifiModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.85)',
+          zIndex: 100,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backdropFilter: 'blur(8px)',
+          overflowY: 'auto',
+          padding: '20px 0'
+        }}>
+          <div className="glass-panel animated-fade-in" style={{
+            padding: '24px',
+            maxWidth: '560px',
+            width: '90%',
+            border: '1px solid rgba(255,255,255,0.15)',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{
+                background: 'rgba(16, 185, 129, 0.1)',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Wifi size={18} style={{ color: '#10b981' }} />
+              </div>
+              <div>
+                <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>Hướng dẫn kết nối Wi-Fi</h4>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>Làm theo các bước bên dưới để liên kết loa với internet</p>
+              </div>
+            </div>
+
+            {/* Part 1: Video player tutorial */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-primary)' }}>🎥 Video hướng dẫn trực quan</span>
+              <div style={{
+                position: 'relative',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                background: 'black',
+                border: '1px solid var(--border-color)',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                aspectRatio: '16/9'
+              }}>
+                <div 
+                  id="wifiTutorialVideo"
+                  style={{ width: '100%', height: '100%', display: 'block' }}
+                />
+              </div>
+            </div>
+
+            {/* Part 2: Step-by-Step interactive guide */}
+            <div style={{ 
+              background: 'rgba(255,255,255,0.02)', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: '12px',
+              padding: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px'
+            }}>
+              {/* Stepper indicator dots */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Bước {wifiStepIndex + 1} / 4
+                </span>
+                <div style={{ display: 'flex', gap: '6px' }}>
+                  {[0, 1, 2, 3].map(idx => (
+                    <div 
+                      key={idx}
+                      onClick={() => handleWifiStepChange(idx)}
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        background: idx === wifiStepIndex ? '#10b981' : 'rgba(255,255,255,0.2)',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Images preview container */}
+              <div style={{
+                background: 'rgba(0,0,0,0.2)',
+                borderRadius: '8px',
+                height: '180px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '12px',
+                overflow: 'hidden',
+                padding: '8px'
+              }}>
+                {wifiStepIndex === 0 && (
+                  <img 
+                    src="/image-guide/Step 1.jpg" 
+                    alt="Step 1" 
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+                  />
+                )}
+                {wifiStepIndex === 1 && (
+                  <>
+                    <img 
+                      src="/image-guide/Step 2.jpg" 
+                      alt="Step 2" 
+                      style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px', maxWidth: '48%' }} 
+                    />
+                    <img 
+                      src="/image-guide/Step 3-1.jpg" 
+                      alt="Step 3-1" 
+                      style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px', maxWidth: '48%' }} 
+                    />
+                  </>
+                )}
+                {wifiStepIndex === 2 && (
+                  <img 
+                    src="/image-guide/Step 3-2.jpg" 
+                    alt="Step 3-2" 
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+                  />
+                )}
+                {wifiStepIndex === 3 && (
+                  <img 
+                    src="/image-guide/Step 4.jpg" 
+                    alt="Step 4" 
+                    style={{ height: '100%', width: 'auto', objectFit: 'contain', borderRadius: '4px' }} 
+                  />
+                )}
+              </div>
+
+              {/* Instruction texts */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {wifiStepIndex === 0 && (
+                  <>
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>1. Khởi động loa và chế độ kết nối</h5>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Bật nguồn loa bằng cách nhấn nút nguồn (nút trên cùng), sau đó nhấn nút Vol- (nút dưới cùng) để loa chuyển sang chế độ thiết lập kết nối Wi-Fi.
+                    </p>
+                  </>
+                )}
+                {wifiStepIndex === 1 && (
+                  <>
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>2. Quét QR loa và kết nối Wifi phát ra</h5>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Dùng điện thoại quét mã QR dán trên thân loa (sử dụng ứng dụng Zalo hoặc Camera điện thoại) và chọn kết nối vào mạng Wi-Fi phát ra từ loa (mạng có tên bắt đầu bằng <code style={{color:'#10b981',fontWeight:'bold'}}>GLOBY-</code>).
+                    </p>
+                  </>
+                )}
+                {wifiStepIndex === 2 && (
+                  <>
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>3. Chọn Wifi nhà và điền mật khẩu</h5>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Trên màn hình điện thoại tự động hiển thị, chọn mạng Wi-Fi gia đình bạn (lưu ý dùng băng tần 2.4GHz), nhập chính xác mật khẩu Wi-Fi rồi nhấn nút <strong style={{color:'#6366f1'}}>Connect</strong>.
+                    </p>
+                  </>
+                )}
+                {wifiStepIndex === 3 && (
+                  <>
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>4. Hoàn thành kết nối mạng</h5>
+                    <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      Chờ trong giây lát để thiết bị tiến hành kết nối. Khi màn hình loa hiển thị thông báo kết nối thành công và hiện lời chào kèm mã kích hoạt 6 chữ số, bạn đã kết nối thành công!
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Steps navigation controls */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
+                <button
+                  disabled={wifiStepIndex === 0}
+                  onClick={() => handleWifiStepChange(wifiStepIndex - 1)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border-color)',
+                    color: wifiStepIndex === 0 ? 'rgba(255,255,255,0.2)' : 'var(--text-primary)',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: wifiStepIndex === 0 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  <ChevronLeft size={14} /> Trước đó
+                </button>
+                <button
+                  disabled={wifiStepIndex === 3}
+                  onClick={() => handleWifiStepChange(wifiStepIndex + 1)}
+                  style={{
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border-color)',
+                    color: wifiStepIndex === 3 ? 'rgba(255,255,255,0.2)' : 'var(--text-primary)',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.75rem',
+                    fontWeight: 600,
+                    cursor: wifiStepIndex === 3 ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  Tiếp tục <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+
+            {/* Bottom Actions */}
+            <div style={{ display: 'flex', gap: '12px', borderTop: '1px solid var(--border-color)', paddingTop: '12px', marginTop: '4px' }}>
+              <button 
+                onClick={() => {
+                  setShowWifiModal(false);
+                  setWifiStepIndex(0);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  background: 'rgba(255,255,255,0.08)',
+                  color: 'var(--text-primary)',
+                  border: 'none',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Đóng lại
+              </button>
+              <button 
+                onClick={() => {
+                  setShowWifiModal(false);
+                  setWifiStepIndex(0);
+                  setShowActivationModal(true);
+                }}
+                style={{
+                  flex: 1.5,
+                  padding: '12px',
+                  borderRadius: '10px',
+                  background: 'linear-gradient(to right, #10b981, #059669)',
+                  color: 'white',
+                  border: 'none',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(16,185,129,0.3)'
+                }}
+              >
+                Tôi đã kết nối xong ➔
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KEY FEATURES EXPLORE MODAL */}
+      {showFeaturesModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(0,0,0,0.85)',
+          zIndex: 100,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backdropFilter: 'blur(8px)'
+        }}>
+          <div className="glass-panel animated-fade-in" style={{
+            padding: '28px',
+            maxWidth: '450px',
+            width: '90%',
+            border: '1px solid rgba(255,255,255,0.15)',
+            maxHeight: '85vh',
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+              <div style={{
+                background: 'rgba(139, 92, 246, 0.1)',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Sparkles size={18} style={{ color: '#8b5cf6' }} />
+              </div>
+              <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>Các tính năng của Loa Globy AI</h4>
+            </div>
+
+            {/* List of features */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {[
+                { icon: "🗣️", title: "Giao tiếp AI đa ngôn ngữ", desc: "Trò chuyện tự nhiên bằng tiếng Anh, tiếng Việt, tiếng Trung, tiếng Nhật... để rèn luyện phản xạ ngoại ngữ trôi chảy." },
+                { icon: "💾", title: "Nghe nhạc từ thẻ nhớ", desc: "Phát nhạc chất lượng cao trực tiếp từ thẻ nhớ Micro SD của bạn thông qua các phím bấm vật lý dễ thao tác." },
+                { icon: "📻", title: "Nghe Radio trực tuyến", desc: "Cập nhật các chương trình thời sự, tin tức, và các kênh đài phát thanh trực tuyến mọi lúc mọi nơi." },
+                { icon: "⏰", title: "Đặt báo thức thông minh", desc: "Thiết lập thời gian biểu, hẹn giờ thức dậy một cách khoa học bằng giọng nói hoặc qua dashboard quản lý." },
+                { icon: "🧮", title: "Hỏi đáp Toán học", desc: "Hỗ trợ giải nhanh các phép tính toán học cơ bản và trả lời câu hỏi khoa học thường thức." },
+                { icon: "🧠", title: "Trò chơi học tập (Quiz & Guess Words)", desc: "Tham gia các trò chơi trả lời câu đố và đoán từ vựng vui nhộn để nâng cao vốn từ vựng ngoại ngữ." },
+                { icon: "⚙️", title: "Thiết lập loa tiện lợi", desc: "Tự do điều chỉnh âm lượng, độ nhạy micro, tốc độ phát âm thanh và tông giọng của AI theo ý muốn." }
+              ].map((f, i) => (
+                <div 
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    gap: '12px',
+                    background: 'rgba(255,255,255,0.02)',
+                    border: '1px solid var(--border-color)',
+                    padding: '12px',
+                    borderRadius: '10px',
+                    alignItems: 'flex-start'
+                  }}
+                >
+                  <span style={{ fontSize: '1.3rem', lineHeight: '1', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))' }}>{f.icon}</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{f.title}</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{f.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setShowFeaturesModal(false)}
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '10px',
+                background: 'rgba(255,255,255,0.08)',
+                color: 'var(--text-primary)',
+                border: 'none',
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginTop: '4px'
+              }}
+            >
+              Đóng lại
+            </button>
           </div>
         </div>
       )}

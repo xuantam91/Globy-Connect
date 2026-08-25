@@ -1335,13 +1335,30 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                             detail="Kích hoạt thành công nhưng phản hồi từ Xiaozhi thiếu thông tin thiết bị (MAC address hoặc ID)."
                         )
 
+                    # Calculate XYZN prefix based on real_mac
+                    prefix = "Globy-"
+                    if real_mac:
+                        clean_mac = real_mac.replace(":", "").upper()
+                        if len(clean_mac) >= 4:
+                            last_4 = clean_mac[-4:]
+                            xyz = last_4[:3]
+                            c4 = last_4[3]
+                            hex_digits = "0123456789ABCDEF"
+                            if c4 in hex_digits:
+                                idx = hex_digits.index(c4)
+                                next_idx = (idx + 1) % 16
+                                n = hex_digits[next_idx]
+                            else:
+                                n = c4
+                            prefix = f"{xyz}{n}"
+
                     # Save device to DB
                     db_device = db.scalar(select(Device).where(Device.external_id == real_id))
                     if not db_device:
                         db_device = Device(external_id=real_id)
                         db.add(db_device)
                     
-                    db_device.name = f"Globy-{real_id}"
+                    db_device.name = f"{prefix}{real_id}"
                     db_device.mac_address = real_mac
                     db_device.status = "online"
                     db_device.account_id = account.id
@@ -1378,7 +1395,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                         mapped_model = model_mapping.get(llm_model, "qwen")
 
                         config_payload = {
-                            "agent_name": f"Globy-{real_id}",
+                            "agent_name": f"{prefix}{real_id}",
                             "llm_model": mapped_model,
                             "tts_voice": voice,
                             "tts_speech_speed": tts_speech_speed,
@@ -1398,8 +1415,8 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                     return {
                         "success": True, 
                         "mac_address": real_mac, 
-                        "name": f"Globy-{real_id}",
-                        "message": f"Kích hoạt thiết bị Globy-{real_id} trên Xiaozhi thành công!"
+                        "name": f"{prefix}{real_id}",
+                        "message": f"Kích hoạt thiết bị {prefix}{real_id} trên Xiaozhi thành công!"
                     }
                 else:
                     msg = res_data.get("message") or ""
