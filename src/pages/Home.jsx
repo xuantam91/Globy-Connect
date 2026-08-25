@@ -683,13 +683,13 @@ export default function Home() {
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
-            border: '2px solid rgba(16, 185, 129, 0.15)',
+            border: '2px solid rgba(6, 182, 212, 0.15)',
             position: 'relative',
             overflow: 'hidden',
             textAlign: 'center'
           }}>
             <div style={{
-              background: 'rgba(16, 185, 129, 0.1)',
+              background: 'rgba(6, 182, 212, 0.1)',
               width: '48px',
               height: '48px',
               borderRadius: '14px',
@@ -698,7 +698,7 @@ export default function Home() {
               justifyContent: 'center',
               margin: '0 auto 16px'
             }}>
-              <Wifi size={24} style={{ color: '#10b981' }} />
+              <Wifi size={24} style={{ color: '#06b6d4' }} />
             </div>
             <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '8px' }}>Kết nối Wi-Fi</h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', lineHeight: '1.5', marginBottom: '20px', flex: 1 }}>
@@ -707,14 +707,14 @@ export default function Home() {
             <button 
               onClick={() => setShowWifiModal(true)}
               style={{
-                background: 'linear-gradient(to right, #10b981, #059669)',
+                background: 'linear-gradient(to right, #06b6d4, #0891b2)',
                 color: 'white',
                 padding: '12px',
                 borderRadius: '10px',
                 fontWeight: 700,
                 fontSize: '0.88rem',
                 width: '100%',
-                boxShadow: '0 4px 12px rgba(16,185,129,0.15)',
+                boxShadow: '0 4px 12px rgba(6,182,212,0.15)',
                 cursor: 'pointer'
               }}
             >
