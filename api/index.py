@@ -1336,7 +1336,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                         )
 
                     # Calculate XYZN prefix based on real_mac
-                    prefix = "Globy-"
+                    prefix = "Globy"
                     if real_mac:
                         clean_mac = real_mac.replace(":", "").upper()
                         if len(clean_mac) >= 4:
@@ -1358,7 +1358,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                         db_device = Device(external_id=real_id)
                         db.add(db_device)
                     
-                    db_device.name = f"{prefix}{real_id}"
+                    db_device.name = f"{prefix}-{real_id}"
                     db_device.mac_address = real_mac
                     db_device.status = "online"
                     db_device.account_id = account.id
@@ -1395,7 +1395,7 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                         mapped_model = model_mapping.get(llm_model, "qwen")
 
                         config_payload = {
-                            "agent_name": f"{prefix}{real_id}",
+                            "agent_name": f"{prefix}-{real_id}",
                             "llm_model": mapped_model,
                             "tts_voice": voice,
                             "tts_speech_speed": tts_speech_speed,
@@ -1415,8 +1415,8 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                     return {
                         "success": True, 
                         "mac_address": real_mac, 
-                        "name": f"{prefix}{real_id}",
-                        "message": f"Kích hoạt thiết bị {prefix}{real_id} trên Xiaozhi thành công!"
+                        "name": f"{prefix}-{real_id}",
+                        "message": f"Kích hoạt thiết bị {prefix}-{real_id} trên Xiaozhi thành công!"
                     }
                 else:
                     msg = res_data.get("message") or ""
