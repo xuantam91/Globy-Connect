@@ -398,7 +398,19 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
         )
     )
     if not device:
-        raise HTTPException(status_code=404, detail="Device not found")
+        # Fallback: sync accounts from Xiaozhi API to import devices
+        service = XiaozhiService(db)
+        await service.sync_all_accounts()
+        device = db.scalar(
+            select(Device).where(
+                (Device.mac_address.ilike(formatted_mac)) | 
+                (Device.mac_address.ilike(qr.mac_address.strip())) |
+                (Device.external_id == qr.mac_address.strip())
+            )
+        )
+
+    if not device:
+        raise HTTPException(status_code=404, detail="Không tìm thấy thiết bị với địa chỉ MAC này trên hệ thống Xiaozhi.")
         
     if qr.template_id == "custom":
         if not qr.language or not qr.llm_model or not qr.tts_voice or not qr.character:
@@ -1362,6 +1374,8 @@ async def activate_device(act: DeviceActivate, background_tasks: BackgroundTasks
                     db_device.mac_address = real_mac
                     db_device.status = "online"
                     db_device.account_id = account.id
+                    if agent_id:
+                        db_device.agent_id = agent_id
                     db_device.current_language = lang
                     db_device.current_voice = voice
                     db_device.ai_prompt_template = character
