@@ -945,8 +945,25 @@ export default function QrLanding() {
         </button>
       </div>
 
-      <div style={s.footer}>
-        &copy; {new Date().getFullYear()} Globy AI Connect
+      <div style={{
+        ...s.footer,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
+      }}>
+        <span>&copy; {new Date().getFullYear()} Globy AI Connect</span>
+        <span style={{
+          background: 'rgba(99, 102, 241, 0.1)',
+          color: '#6366f1',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '0.7rem',
+          fontWeight: 600,
+          border: '1px solid rgba(99, 102, 241, 0.2)'
+        }}>
+          v1.1.0
+        </span>
       </div>
     </div>
   );

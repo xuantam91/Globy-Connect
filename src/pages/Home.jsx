@@ -1710,9 +1710,24 @@ export default function Home() {
         padding: '24px',
         fontSize: '0.78rem',
         color: 'var(--text-muted)',
-        zIndex: 10
+        zIndex: 10,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px'
       }}>
-        &copy; {new Date().getFullYear()} Globy AI Connect. Hỗ trợ hệ điều hành loa Globy.
+        <span>&copy; {new Date().getFullYear()} Globy AI Connect. Hỗ trợ hệ điều hành loa Globy.</span>
+        <span style={{
+          background: 'rgba(99, 102, 241, 0.1)',
+          color: '#6366f1',
+          padding: '2px 8px',
+          borderRadius: '12px',
+          fontSize: '0.72rem',
+          fontWeight: 600,
+          border: '1px solid rgba(99, 102, 241, 0.2)'
+        }}>
+          v1.1.0
+        </span>
       </footer>
 
       {/* Embedded CSS animations for scanning line */}
