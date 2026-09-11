@@ -147,16 +147,14 @@ def detect_gender(name: str, tts_voice: str = "") -> str:
     """Auto-detect gender from preset name or voice ID."""
     n = (name or "").lower()
     v = (tts_voice or "").lower()
-    if any(k in n for k in ["(nữ)", "(female)", "nữ", "female"]):
+    if any(k in n for k in ["(nữ)", "(female)", "nữ", "female", "cô", "chị", "bà", "bé gái", "minh châu"]):
         return "female"
-    if any(k in n for k in ["(nam)", "(male)", "nam", "male"]):
+    if any(k in n for k in ["(nam)", "(male)", "nam", "male", "thầy", "anh", "ông", "bé trai"]):
         return "male"
     # Fallback: check voice_id
-    if "female" in v or "girl" in v or "lady" in v:
+    if any(k in v for k in ["female", "girl", "lady", "hoaimy", "wanwan", "linjian", "mengya", "shuangkuai", "xiaoxiao", "yating"]):
         return "female"
-    if "male" in v and "female" not in v:
-        return "male"
-    if "man" in v or "boy" in v:
+    if any(k in v for k in ["male", "boy", "man", "namminh", "jingqiang", "shaonian", "wennuan", "yunxi", "yunyang"]) and "female" not in v:
         return "male"
     return "neutral"
 
@@ -461,7 +459,8 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
                     tts_pitch=tts_pitch,
                     mcp_endpoints_json=json.dumps(mcp_endpoints),
                     character_prompt=qr.character,
-                    is_public=True
+                    is_public=True,
+                    gender=detect_gender(final_preset_name, qr.tts_voice)
                 )
                 db.add(db_preset)
                 db.commit()

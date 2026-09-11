@@ -566,77 +566,84 @@ export default function QrLanding() {
   };
 
   const getDevicePresetInfo = () => {
-    if (!deviceInfo) return { name: 'Chưa thiết lập', lang: '', gender: '', voiceName: '' };
+    if (!deviceInfo) return { name: 'Chưa thiết lập', lang: '', gender: '', genderDisplay: '' };
 
     const dPrompt = (deviceInfo.ai_prompt_template || '').trim().toLowerCase();
     const dVoice = normalizeVoice(deviceInfo.current_voice);
     const dLang = deviceInfo.current_language;
     const dModel = deviceInfo.llm_model;
 
-    // 1. First priority: Exact character prompt match + voice + lang
-    let matched = presets.find(p => {
-      const pPrompt = (p.character || '').trim().toLowerCase();
-      return (
-        p.language === dLang &&
-        normalizeVoice(p.tts_voice) === dVoice &&
-        pPrompt && dPrompt && pPrompt === dPrompt
-      );
-    });
+    // Filter candidates matching language & voice
+    let candidates = presets.filter(p => p.language === dLang && normalizeVoice(p.tts_voice) === dVoice);
 
-    // 2. Second priority: Partial prompt match + voice + lang
-    if (!matched && dPrompt) {
-      matched = presets.find(p => {
-        const pPrompt = (p.character || '').trim().toLowerCase();
-        if (!pPrompt) return false;
-        return (
-          p.language === dLang &&
-          normalizeVoice(p.tts_voice) === dVoice &&
-          (dPrompt.includes(pPrompt) || pPrompt.includes(dPrompt))
-        );
-      });
-    }
+    let matched = null;
 
-    // 3. Third priority: Exact voice + lang + llm_model match
-    if (!matched && dModel) {
-      matched = presets.find(p => 
-        p.language === dLang &&
-        normalizeVoice(p.tts_voice) === dVoice &&
-        p.llm_model === dModel
-      );
-    }
+    if (candidates.length > 0) {
+      // 1. Exact prompt match
+      if (dPrompt) {
+        matched = candidates.find(p => (p.character || '').trim().toLowerCase() === dPrompt);
+      }
 
-    // 4. Fallback priority: Voice + lang match
-    if (!matched) {
-      matched = presets.find(p => 
-        p.language === dLang &&
-        normalizeVoice(p.tts_voice) === dVoice
-      );
+      // 2. Substring/partial prompt match
+      if (!matched && dPrompt) {
+        matched = candidates.find(p => {
+          const pPrompt = (p.character || '').trim().toLowerCase();
+          return pPrompt && (dPrompt.includes(pPrompt) || pPrompt.includes(dPrompt));
+        });
+      }
+
+      // 3. Exact model match
+      if (!matched && dModel) {
+        matched = candidates.find(p => p.llm_model === dModel);
+      }
+
+      // 4. Prefer human-named preset over generic User Config
+      if (!matched) {
+        matched = candidates.find(p => !p.name.startsWith('User Config') && !p.name.startsWith('Cấu hình đóng góp'));
+      }
+
+      // 5. Fallback to first candidate
+      if (!matched) {
+        matched = candidates[0];
+      }
+    } else {
+      // If voice normalized match failed, try matching by prompt alone across all presets
+      if (dPrompt) {
+        matched = presets.find(p => (p.character || '').trim().toLowerCase() === dPrompt);
+      }
     }
 
     let name = 'Tùy chỉnh';
     let lang = langLabel(deviceInfo.current_language);
-    let gender = 'Chung';
+    let rawGender = 'neutral';
 
     if (matched) {
       name = matched.name.replace(/\s*\((Nam|Nữ|Male|Female)\)\s*$/i, '').replace(/\s+/g, ' ').trim();
-      gender = matched.gender === 'male' ? 'Giọng Nam' : matched.gender === 'female' ? 'Giọng Nữ' : 'Chung';
-    } else {
-      const rawVoice = (deviceInfo.current_voice || '').toLowerCase();
-      if (rawVoice.includes('female') || rawVoice.includes('girl') || rawVoice.includes('lady') || rawVoice.includes('hoaimy')) {
-        gender = 'Giọng Nữ';
-      } else if (rawVoice.includes('male') || rawVoice.includes('boy') || rawVoice.includes('man') || rawVoice.includes('namminh')) {
-        gender = 'Giọng Nam';
+      rawGender = matched.gender || 'neutral';
+    }
+
+    // Comprehensive fallback gender detection
+    if (!rawGender || rawGender === 'neutral') {
+      const v = (deviceInfo.current_voice || (matched ? matched.tts_voice : '') || '').toLowerCase();
+      const n = (matched ? matched.name : '').toLowerCase();
+      if (
+        n.includes('nữ') || n.includes('female') || n.includes('minh châu') ||
+        v.includes('female') || v.includes('girl') || v.includes('lady') ||
+        v.includes('hoaimy') || v.includes('wanwan') || v.includes('linjian') ||
+        v.includes('shuangkuai') || v.includes('mengya')
+      ) {
+        rawGender = 'female';
+      } else if (
+        n.includes('nam') || n.includes('male') ||
+        (v.includes('male') && !v.includes('female')) || v.includes('man') || v.includes('boy') ||
+        v.includes('namminh') || v.includes('jingqiang') || v.includes('shaonian') || v.includes('wennuan')
+      ) {
+        rawGender = 'male';
       }
     }
 
-    let genderDisplay = '';
-    if (gender === 'Giọng Nam') {
-      genderDisplay = '👨';
-    } else if (gender === 'Giọng Nữ') {
-      genderDisplay = '👩';
-    } else {
-      genderDisplay = '';
-    }
+    let gender = rawGender === 'male' ? 'Giọng Nam' : rawGender === 'female' ? 'Giọng Nữ' : 'Chung';
+    let genderDisplay = rawGender === 'male' ? '👨' : rawGender === 'female' ? '👩' : '';
 
     return { name, lang, gender, genderDisplay };
   };

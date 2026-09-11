@@ -701,6 +701,29 @@ export default function AdminDashboard() {
     return name;
   };
 
+  const getPresetGenderIcon = (p) => {
+    let gender = p.gender || 'neutral';
+    if (!gender || gender === 'neutral') {
+      const n = (p.name || '').toLowerCase();
+      const v = (p.tts_voice || '').toLowerCase();
+      if (
+        n.includes('nữ') || n.includes('female') || n.includes('minh châu') ||
+        v.includes('female') || v.includes('girl') || v.includes('lady') ||
+        v.includes('hoaimy') || v.includes('wanwan') || v.includes('linjian') ||
+        v.includes('shuangkuai') || v.includes('mengya')
+      ) {
+        gender = 'female';
+      } else if (
+        n.includes('nam') || n.includes('male') ||
+        (v.includes('male') && !v.includes('female')) || v.includes('man') || v.includes('boy') ||
+        v.includes('namminh') || v.includes('jingqiang') || v.includes('shaonian') || v.includes('wennuan')
+      ) {
+        gender = 'male';
+      }
+    }
+    return gender === 'male' ? '👨' : gender === 'female' ? '👩' : '';
+  };
+
   const getLangDisplayName = (code) => {
     if (!code) return 'Chưa chọn';
     const match = languages.find(l => l.code === code);
@@ -1089,9 +1112,14 @@ export default function AdminDashboard() {
                     )}
                     {/* Row 2: Meta + Action buttons */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.03)', paddingTop: '6px', marginTop: '2px' }}>
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                         <span>{p.llm_model}</span>
                         <span>{p.language?.toUpperCase()}</span>
+                        {getPresetGenderIcon(p) && (
+                          <span style={{ fontSize: '0.8rem', lineHeight: 1 }} title={p.gender}>
+                            {getPresetGenderIcon(p)}
+                          </span>
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: '3px' }}>
                         <button
