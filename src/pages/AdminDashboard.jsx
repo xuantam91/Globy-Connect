@@ -179,11 +179,15 @@ export default function AdminDashboard() {
         setExtensions(mcpList);
         setCharacterPrompt(d.ai_prompt_template || '');
         
-        // Find matching preset based on voice and character prompt
-        const matched = presets.find(p => 
-          p.tts_voice === d.current_voice && 
-          p.language === d.current_language
-        );
+        // Find matching preset based on character prompt, voice and language
+        const dPrompt = (d.ai_prompt_template || '').trim().toLowerCase();
+        let matched = presets.find(p => {
+          const pPrompt = (p.character || '').trim().toLowerCase();
+          return p.tts_voice === d.current_voice && p.language === d.current_language && pPrompt && dPrompt && pPrompt === dPrompt;
+        });
+        if (!matched) {
+          matched = presets.find(p => p.tts_voice === d.current_voice && p.language === d.current_language);
+        }
         setSelectedPreset(matched ? matched.id : ''); 
       }
     }

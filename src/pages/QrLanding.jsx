@@ -172,7 +172,7 @@ export default function QrLanding() {
       const data = await res.json();
       if (data.success) {
         setPresets(data.data);
-        if (data.data.length > 0) setSelectedTemplate(data.data[0].id);
+        if (data.data.length > 0 && !selectedTemplate) setSelectedTemplate(data.data[0].id);
       }
     } catch (err) {
       console.error('Failed to load presets:', err);
@@ -201,6 +201,7 @@ export default function QrLanding() {
       });
       const data = await res.json();
       if (data.success) {
+        await fetchDeviceStatus();
         setSuccess(true);
       } else {
         alert(data.message || 'Không áp dụng được cấu hình.');
@@ -557,14 +558,60 @@ export default function QrLanding() {
     return voiceId;
   };
 
+  const normalizeVoice = (id) => {
+    if (!id) return '';
+    if (id === 'vi-VN-HoaiMyNeural' || id === 'Vietnamese_kindhearted_girl') return 'vi_female';
+    if (id === 'vi-VN-NamMinhNeural' || id === 'Vietnamese_Serene_Man' || id === 'Vietnamese_gentle_boy') return 'vi_male';
+    return id.toLowerCase();
+  };
+
   const getDevicePresetInfo = () => {
-    if (!deviceInfo) return { name: 'Chưa thiết lập', lang: '', gender: '' };
-    
-    // 1. Try to find a matching preset by voice & language
-    let matched = presets.find(p => 
-      p.tts_voice === deviceInfo.current_voice && 
-      p.language === deviceInfo.current_language
-    );
+    if (!deviceInfo) return { name: 'Chưa thiết lập', lang: '', gender: '', voiceName: '' };
+
+    const dPrompt = (deviceInfo.ai_prompt_template || '').trim().toLowerCase();
+    const dVoice = normalizeVoice(deviceInfo.current_voice);
+    const dLang = deviceInfo.current_language;
+    const dModel = deviceInfo.llm_model;
+
+    // 1. First priority: Exact character prompt match + voice + lang
+    let matched = presets.find(p => {
+      const pPrompt = (p.character || '').trim().toLowerCase();
+      return (
+        p.language === dLang &&
+        normalizeVoice(p.tts_voice) === dVoice &&
+        pPrompt && dPrompt && pPrompt === dPrompt
+      );
+    });
+
+    // 2. Second priority: Partial prompt match + voice + lang
+    if (!matched && dPrompt) {
+      matched = presets.find(p => {
+        const pPrompt = (p.character || '').trim().toLowerCase();
+        if (!pPrompt) return false;
+        return (
+          p.language === dLang &&
+          normalizeVoice(p.tts_voice) === dVoice &&
+          (dPrompt.includes(pPrompt) || pPrompt.includes(dPrompt))
+        );
+      });
+    }
+
+    // 3. Third priority: Exact voice + lang + llm_model match
+    if (!matched && dModel) {
+      matched = presets.find(p => 
+        p.language === dLang &&
+        normalizeVoice(p.tts_voice) === dVoice &&
+        p.llm_model === dModel
+      );
+    }
+
+    // 4. Fallback priority: Voice + lang match
+    if (!matched) {
+      matched = presets.find(p => 
+        p.language === dLang &&
+        normalizeVoice(p.tts_voice) === dVoice
+      );
+    }
 
     let name = 'Tùy chỉnh';
     let lang = langLabel(deviceInfo.current_language);
@@ -574,15 +621,16 @@ export default function QrLanding() {
       name = matched.name.replace(/\s*\((Nam|Nữ|Male|Female)\)\s*$/i, '').replace(/\s+/g, ' ').trim();
       gender = matched.gender === 'male' ? 'Giọng Nam' : matched.gender === 'female' ? 'Giọng Nữ' : 'Chung';
     } else {
-      const voice = (deviceInfo.current_voice || '').toLowerCase();
-      if (voice.includes('female') || voice.includes('girl') || voice.includes('lady') || voice.includes('hoaimy')) {
+      const rawVoice = (deviceInfo.current_voice || '').toLowerCase();
+      if (rawVoice.includes('female') || rawVoice.includes('girl') || rawVoice.includes('lady') || rawVoice.includes('hoaimy')) {
         gender = 'Giọng Nữ';
-      } else if (voice.includes('male') || voice.includes('boy') || voice.includes('man') || voice.includes('namminh')) {
+      } else if (rawVoice.includes('male') || rawVoice.includes('boy') || rawVoice.includes('man') || rawVoice.includes('namminh')) {
         gender = 'Giọng Nam';
       }
     }
 
-    return { name, lang, gender };
+    const voiceName = getVoiceDisplayName(deviceInfo.current_voice);
+    return { name, lang, gender, voiceName };
   };
 
   const currentInfo = getDevicePresetInfo();
@@ -660,7 +708,8 @@ export default function QrLanding() {
           alignItems: 'center',
           gap: '6px',
           color: 'var(--text-secondary)',
-          flexShrink: 0
+          flexShrink: 0,
+          flexWrap: 'wrap'
         }}>
           <Volume2 size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>Đang dùng:</span>
@@ -668,7 +717,9 @@ export default function QrLanding() {
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.lang}</strong>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
-          <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.gender}</strong>
+          <strong style={{ color: 'var(--text-primary)' }}>
+            {currentInfo.gender}{currentInfo.voiceName ? ` (${currentInfo.voiceName})` : ''}
+          </strong>
         </div>
       )}
 
