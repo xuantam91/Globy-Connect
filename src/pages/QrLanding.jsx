@@ -629,8 +629,16 @@ export default function QrLanding() {
       }
     }
 
-    const voiceName = getVoiceDisplayName(deviceInfo.current_voice);
-    return { name, lang, gender, voiceName };
+    let genderDisplay = 'Chung';
+    if (gender === 'Giọng Nam') {
+      genderDisplay = '👨 Giọng Nam';
+    } else if (gender === 'Giọng Nữ') {
+      genderDisplay = '👩 Giọng Nữ';
+    } else {
+      genderDisplay = gender;
+    }
+
+    return { name, lang, gender, genderDisplay };
   };
 
   const currentInfo = getDevicePresetInfo();
@@ -708,8 +716,7 @@ export default function QrLanding() {
           alignItems: 'center',
           gap: '6px',
           color: 'var(--text-secondary)',
-          flexShrink: 0,
-          flexWrap: 'wrap'
+          flexShrink: 0
         }}>
           <Volume2 size={14} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <span style={{ fontSize: '0.75rem', fontWeight: 500 }}>Đang dùng:</span>
@@ -717,9 +724,7 @@ export default function QrLanding() {
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.lang}</strong>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
-          <strong style={{ color: 'var(--text-primary)' }}>
-            {currentInfo.gender}{currentInfo.voiceName ? ` (${currentInfo.voiceName})` : ''}
-          </strong>
+          <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.genderDisplay}</strong>
         </div>
       )}
 
