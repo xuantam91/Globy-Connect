@@ -367,8 +367,9 @@ async def apply_bulk_config(cfg: BulkConfigApply, db: Session = Depends(get_db))
         raise HTTPException(status_code=404, detail="No devices found")
         
     success_count = 0
+    last_err = None
     for device in devices:
-        ok = await service.update_device_config(
+        ok, err_msg = await service.update_device_config(
             device=device,
             llm_model=cfg.llm_model,
             language=cfg.language,
@@ -381,8 +382,13 @@ async def apply_bulk_config(cfg: BulkConfigApply, db: Session = Depends(get_db))
         )
         if ok:
             success_count += 1
+        else:
+            last_err = err_msg
             
-    return {"success": True, "updated_count": success_count}
+    if success_count > 0:
+        return {"success": True, "updated_count": success_count}
+    else:
+        return {"success": False, "message": last_err or "Failed to push configuration to Xiaozhi API"}
 
 # QR scanning Quick config API
 @app.post("/api/qr/apply")
@@ -422,7 +428,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
         tts_pitch = qr.tts_pitch if qr.tts_pitch is not None else 0
         
         service = XiaozhiService(db)
-        ok = await service.update_device_config(
+        ok, err_msg = await service.update_device_config(
             device=device,
             llm_model=qr.llm_model,
             language=qr.language,
@@ -515,7 +521,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
             raise HTTPException(status_code=400, detail="Invalid template ID")
             
         service = XiaozhiService(db)
-        ok = await service.update_device_config(
+        ok, err_msg = await service.update_device_config(
             device=device,
             llm_model=selected_tmpl["llm_model"],
             language=selected_tmpl["language"],
@@ -531,7 +537,7 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
         await sync_device_to_supabase(device, db)
         return {"success": True}
     else:
-        return {"success": False, "message": "Failed to push configuration to Xiaozhi API"}
+        return {"success": False, "message": err_msg or "Failed to push configuration to Xiaozhi API"}
 
 _voices_cache = None
 _voices_cache_time = 0
