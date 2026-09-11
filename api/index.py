@@ -443,8 +443,15 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
         )
 
         if ok and qr.contribute:
-            final_preset_name = qr.preset_name.strip() if qr.preset_name and qr.preset_name.strip() else f"User Config ({qr.mac_address[-4:] if len(qr.mac_address) >= 4 else qr.mac_address})"
-            final_contributor = qr.contributor.strip() if qr.contributor and qr.contributor.strip() else f"người dùng thiết bị {qr.mac_address}"
+            clean_mac = (qr.mac_address or "").replace(":", "").replace("-", "").strip()
+            mac_suffix = clean_mac[-4:] if len(clean_mac) >= 4 else clean_mac
+            
+            final_preset_name = qr.preset_name.strip() if qr.preset_name and qr.preset_name.strip() else f"User Config ({mac_suffix})"
+            
+            if qr.contributor and qr.contributor.strip():
+                final_contributor = qr.contributor.strip()
+            else:
+                final_contributor = f"người dùng thiết bị ...{mac_suffix}"
             
             existing = db.scalar(select(Preset).where(Preset.name == final_preset_name))
             if not existing:

@@ -565,6 +565,16 @@ export default function QrLanding() {
     return id.toLowerCase();
   };
 
+  const maskMacInText = (text) => {
+    if (!text) return '';
+    return text
+      .replace(/([0-9a-fA-F]{2}[:-\s]?){5}[0-9a-fA-F]{2}/g, (m) => {
+        const clean = m.replace(/[:-\s]/g, '');
+        return `...${clean.slice(-4)}`;
+      })
+      .replace(/([0-9a-fA-F]{12})/g, (m) => `...${m.slice(-4)}`);
+  };
+
   const getDevicePresetInfo = () => {
     if (!deviceInfo) return { name: 'Chưa thiết lập', lang: '', gender: '', genderDisplay: '' };
 
@@ -581,20 +591,26 @@ export default function QrLanding() {
     if (candidates.length > 0) {
       // 1. Exact prompt match
       if (dPrompt) {
-        matched = candidates.find(p => (p.character || '').trim().toLowerCase() === dPrompt);
+        const exactMatches = candidates.filter(p => (p.character || '').trim().toLowerCase() === dPrompt);
+        if (exactMatches.length > 0) {
+          matched = exactMatches.find(p => !p.name.startsWith('User Config') && !p.name.startsWith('Cấu hình đóng góp')) || exactMatches[exactMatches.length - 1];
+        }
       }
 
       // 2. Substring/partial prompt match
       if (!matched && dPrompt) {
-        matched = candidates.find(p => {
+        const partialMatches = candidates.filter(p => {
           const pPrompt = (p.character || '').trim().toLowerCase();
           return pPrompt && (dPrompt.includes(pPrompt) || pPrompt.includes(dPrompt));
         });
+        if (partialMatches.length > 0) {
+          matched = partialMatches.find(p => !p.name.startsWith('User Config') && !p.name.startsWith('Cấu hình đóng góp')) || partialMatches[partialMatches.length - 1];
+        }
       }
 
       // 3. Exact model match
       if (!matched && dModel) {
-        matched = candidates.find(p => p.llm_model === dModel);
+        matched = candidates.find(p => p.llm_model === dModel && !p.name.startsWith('User Config') && !p.name.startsWith('Cấu hình đóng góp')) || candidates.find(p => p.llm_model === dModel);
       }
 
       // 4. Prefer human-named preset over generic User Config
@@ -602,18 +618,24 @@ export default function QrLanding() {
         matched = candidates.find(p => !p.name.startsWith('User Config') && !p.name.startsWith('Cấu hình đóng góp'));
       }
 
-      // 5. Fallback to first candidate
+      // 5. Fallback to latest candidate
       if (!matched) {
-        matched = candidates[0];
+        matched = candidates[candidates.length - 1];
       }
     } else {
       // If voice normalized match failed, try matching by prompt alone across all presets
       if (dPrompt) {
-        matched = presets.find(p => (p.character || '').trim().toLowerCase() === dPrompt);
+        const promptMatches = presets.filter(p => (p.character || '').trim().toLowerCase() === dPrompt);
+        if (promptMatches.length > 0) {
+          matched = promptMatches.find(p => !p.name.startsWith('User Config') && !p.name.startsWith('Cấu hình đóng góp')) || promptMatches[promptMatches.length - 1];
+        }
       }
     }
 
-    let name = 'Tùy chỉnh';
+    let cleanMac = (mac || '').replace(/[:-\s]/g, '');
+    let macSuffix = cleanMac.length >= 4 ? cleanMac.slice(-4) : cleanMac;
+
+    let name = `User Config (${macSuffix})`;
     let lang = langLabel(deviceInfo.current_language);
     let rawGender = 'neutral';
 
@@ -707,7 +729,9 @@ export default function QrLanding() {
           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, marginBottom: '2px' }}>Tên thiết bị</div>
           <div style={s.deviceName}>{deviceInfo?.name || 'Loa thông minh'}</div>
         </div>
-        <span style={s.macLabel}>{mac}</span>
+        <span style={s.macLabel} title={`Full MAC: ${mac}`}>
+          {mac ? (mac.length > 6 ? `...${mac.replace(/[:-\s]/g, '').slice(-4).toLowerCase()}` : mac) : ''}
+        </span>
       </div>
 
       {/* Current Configuration Card */}
@@ -758,7 +782,7 @@ export default function QrLanding() {
                       <div style={s.groupIcon}>{group.icon}</div>
                       <div style={s.groupInfo}>
                         <div style={s.groupName}>{group.baseName}</div>
-                        <div style={s.groupDesc}>{group.description}</div>
+                        <div style={s.groupDesc}>{maskMacInText(group.description)}</div>
                         <div style={s.groupMeta}>
                           <span style={s.metaItem}><Globe size={10} /> {langLabel(group.language)}</span>
                           <span style={s.metaItem}><Cpu size={10} /> {(group.model || '').toUpperCase()}</span>
@@ -797,7 +821,7 @@ export default function QrLanding() {
                     <div style={s.groupIcon}>{group.icon}</div>
                     <div style={s.groupInfo}>
                       <div style={s.groupName}>{group.baseName}</div>
-                      <div style={s.groupDesc}>{group.description}</div>
+                      <div style={s.groupDesc}>{maskMacInText(group.description)}</div>
                       <div style={s.groupMeta}>
                         <span style={s.metaItem}><Globe size={10} /> {langLabel(group.language)}</span>
                         <span style={s.metaItem}><Cpu size={10} /> {(group.model || '').toUpperCase()}</span>
