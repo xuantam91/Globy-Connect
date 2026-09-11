@@ -1726,7 +1726,7 @@ export default function Home() {
           fontWeight: 600,
           border: '1px solid rgba(99, 102, 241, 0.2)'
         }}>
-          v1.1.0
+          v1.1.1
         </span>
       </footer>
 

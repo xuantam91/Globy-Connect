@@ -629,13 +629,13 @@ export default function QrLanding() {
       }
     }
 
-    let genderDisplay = 'Chung';
+    let genderDisplay = '';
     if (gender === 'Giọng Nam') {
-      genderDisplay = '👨 Giọng Nam';
+      genderDisplay = '👨';
     } else if (gender === 'Giọng Nữ') {
-      genderDisplay = '👩 Giọng Nữ';
+      genderDisplay = '👩';
     } else {
-      genderDisplay = gender;
+      genderDisplay = '';
     }
 
     return { name, lang, gender, genderDisplay };
@@ -723,8 +723,14 @@ export default function QrLanding() {
           <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.name}</strong>
           <span style={{ color: 'var(--text-muted)' }}>•</span>
           <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.lang}</strong>
-          <span style={{ color: 'var(--text-muted)' }}>•</span>
-          <strong style={{ color: 'var(--text-primary)' }}>{currentInfo.genderDisplay}</strong>
+          {currentInfo.genderDisplay && (
+            <>
+              <span style={{ color: 'var(--text-muted)' }}>•</span>
+              <span style={{ fontSize: '0.9rem', lineHeight: 1 }} title={currentInfo.gender}>
+                {currentInfo.genderDisplay}
+              </span>
+            </>
+          )}
         </div>
       )}
 
@@ -1018,7 +1024,7 @@ export default function QrLanding() {
           fontWeight: 600,
           border: '1px solid rgba(99, 102, 241, 0.2)'
         }}>
-          v1.1.0
+          v1.1.1
         </span>
       </div>
     </div>
