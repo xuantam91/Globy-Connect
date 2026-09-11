@@ -418,6 +418,10 @@ async def apply_qr_template(qr: QrApply, background_tasks: BackgroundTasks, db: 
     if not device:
         raise HTTPException(status_code=404, detail="Không tìm thấy thiết bị với địa chỉ MAC này trên hệ thống Xiaozhi.")
         
+    if not device.mac_address:
+        device.mac_address = formatted_mac
+        db.commit()
+        
     if qr.template_id == "custom":
         if not qr.language or not qr.llm_model or not qr.tts_voice or not qr.character:
             raise HTTPException(status_code=400, detail="Missing required custom configuration fields")

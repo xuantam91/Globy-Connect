@@ -368,6 +368,7 @@ class XiaozhiService:
 
         # Search across all active accounts if agent_id is missing or equal to external_id
         clean_dev_mac = (device.mac_address or "").replace(":", "").replace("-", "").lower()
+        found_agent = False
         if not push_agent_id or push_agent_id == device.external_id or not target_account:
             for acc in active_accounts:
                 if acc.bearer_token.startswith("mock"):
@@ -378,9 +379,11 @@ class XiaozhiService:
                     "User-Agent": "Mozilla/5.0"
                 }
                 try:
-                    async with httpx.AsyncClient(timeout=8.0) as fetch_client:
-                        res = await fetch_client.get("https://xiaozhi.me/api/agents?page=1&pageSize=100", headers=acc_headers)
-                        if res.status_code == 200:
+                    async with httpx.AsyncClient(timeout=10.0) as fetch_client:
+                        for page in range(1, 6):
+                            res = await fetch_client.get("https://xiaozhi.me/api/agents", params={"page": page, "pageSize": 100}, headers=acc_headers)
+                            if res.status_code != 200:
+                                break
                             agents_data = res.json()
                             agents_list = []
                             if isinstance(agents_data, list):
@@ -394,23 +397,46 @@ class XiaozhiService:
                                 else:
                                     agents_list = agents_data.get("items") or agents_data.get("list") or agents_data.get("agents") or []
                             
-                            for ag in agents_list:
-                                if isinstance(ag, dict):
-                                    ag_id = str(ag.get("id") or ag.get("agent_id") or "")
-                                    last_dev = ag.get("lastDevice")
-                                    if isinstance(last_dev, dict):
-                                        dev_mac = str(last_dev.get("mac_address") or last_dev.get("macAddress") or "").replace(":", "").replace("-", "").lower()
-                                        dev_id = str(last_dev.get("id") or "")
-                                        if (clean_dev_mac and dev_mac and clean_dev_mac == dev_mac) or (dev_id and dev_id == device.external_id):
-                                            push_agent_id = ag_id
-                                            target_account = acc
-                                            device.agent_id = push_agent_id
-                                            device.account = acc
-                                            device.account_id = acc.id
-                                            self.db.commit()
-                                            break
-                            if push_agent_id and push_agent_id != device.external_id:
+                            if not agents_list:
                                 break
+
+                            for ag in agents_list:
+                                if not isinstance(ag, dict):
+                                    continue
+                                ag_agent_id = str(ag.get("id") or ag.get("agent_id") or ag.get("agentId") or "")
+                                last_dev = ag.get("lastDevice")
+                                dev_mac = ""
+                                dev_id = ""
+                                dev_agent_id = ag_agent_id
+
+                                if isinstance(last_dev, dict):
+                                    dev_mac = str(last_dev.get("mac_address") or last_dev.get("macAddress") or "").replace(":", "").replace("-", "").lower()
+                                    dev_id = str(last_dev.get("id") or last_dev.get("deviceId") or "")
+                                    dev_agent_id = str(last_dev.get("agent_id") or last_dev.get("agentId") or ag_agent_id)
+
+                                is_match = False
+                                if clean_dev_mac and dev_mac and clean_dev_mac == dev_mac:
+                                    is_match = True
+                                elif dev_id and device.external_id and dev_id == device.external_id:
+                                    is_match = True
+                                elif dev_agent_id and device.external_id and dev_agent_id == device.external_id:
+                                    is_match = True
+
+                                if is_match:
+                                    real_agent_id = dev_agent_id or ag_agent_id
+                                    if real_agent_id:
+                                        push_agent_id = real_agent_id
+                                        target_account = acc
+                                        device.agent_id = real_agent_id
+                                        device.account = acc
+                                        device.account_id = acc.id
+                                        self.db.commit()
+                                        found_agent = True
+                                        break
+                            if found_agent:
+                                break
+                    if found_agent:
+                        break
                 except Exception as acc_err:
                     logger.warning(f"Error searching account {acc.label}: {acc_err}")
 
@@ -423,10 +449,10 @@ class XiaozhiService:
         if target_account.bearer_token.startswith("mock"):
             return True, "Mock update successful."
 
-        if not push_agent_id:
-            push_agent_id = device.external_id
-        if "agent-" in push_agent_id:
-            push_agent_id = push_agent_id.replace("agent-", "")
+        if not push_agent_id or push_agent_id == device.external_id:
+            err_msg = f"Không tìm thấy Agent ID tương ứng trên Xiaozhi cho thiết bị (Device ID: {device.external_id}, MAC: {device.mac_address or 'N/A'}). Vui lòng gắn thiết bị với một Agent trên console Xiaozhi.me trước."
+            logger.error(err_msg)
+            return False, err_msg
 
         url = f"https://xiaozhi.me/api/agents/{push_agent_id}/config"
         headers = {
