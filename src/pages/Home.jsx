@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Cpu, User, Shield, Camera, Link, Moon, Sun, ArrowRight, Sparkles, RefreshCw, Key, Hash, Sliders, Volume2, Wifi, Info, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Cpu, User, Shield, Camera, Link, Moon, Sun, ArrowRight, Sparkles, RefreshCw, Key, Hash, Sliders, Volume2, Wifi, Info, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
 
 
@@ -209,6 +209,54 @@ export default function Home() {
     }
   };
 
+  const closeActivationModal = () => {
+    setShowActivationModal(false);
+    setActivationDigits(['', '', '', '', '', '']);
+    setNewDeviceName('');
+    setActivationError(null);
+    setIsSpeaking(false);
+    setIsSpeakerPulsing(false);
+    if (autoSpeakTimerId) {
+      clearTimeout(autoSpeakTimerId);
+      setAutoSpeakTimerId(null);
+    }
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  const handleActivateDevice = async () => {
+    const cleanCode = activationDigits.join('').trim();
+    if (!cleanCode || cleanCode.length !== 6 || !/^\d+$/.test(cleanCode)) {
+      setActivationError("Vui lòng nhập đúng dãy 6 chữ số hiển thị trên loa!");
+      return;
+    }
+    setActivationError(null);
+    setActivating(true);
+    try {
+      const res = await fetch('/api/devices/activate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          code: cleanCode,
+          name: newDeviceName.trim() || undefined
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        closeActivationModal();
+        const cleanMac = (data.mac_address || '').replace(/[:-\s]/g, '').toLowerCase();
+        navigate(`/role?mac=${encodeURIComponent(cleanMac)}`);
+      } else {
+        setActivationError(data.detail || "Mã kích hoạt không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại.");
+      }
+    } catch (err) {
+      setActivationError("Lỗi kết nối khi gửi yêu cầu kích hoạt.");
+    } finally {
+      setActivating(false);
+    }
+  };
+
   const handleDigitKeyDown = (index, e) => {
     setActivationError(null);
     if (autoSpeakTimerId) {
@@ -216,6 +264,12 @@ export default function Home() {
       setAutoSpeakTimerId(null);
     }
     setIsSpeakerPulsing(false);
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleActivateDevice();
+      return;
+    }
 
     if (e.key === 'Backspace' && !activationDigits[index] && index > 0) {
       const prevInput = document.getElementById(`digit-input-${index - 1}`);
@@ -253,7 +307,24 @@ export default function Home() {
         if (firstInput) firstInput.focus();
       }, 150);
 
-      // 2. Start the 9-second inactivity timer for auto voice alert
+      // 2. Global keydown handler for Esc and X to close modal
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          closeActivationModal();
+          return;
+        }
+        if (e.key === 'x' || e.key === 'X') {
+          const activeEl = document.activeElement;
+          if (activeEl && activeEl.id === 'new-device-name-input') {
+            return;
+          }
+          closeActivationModal();
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+
+      // 3. Start the 9-second inactivity timer for auto voice alert
       const speakTimer = setTimeout(() => {
         setIsSpeakerPulsing(true);
         speakGuidance();
@@ -264,6 +335,7 @@ export default function Home() {
       return () => {
         clearTimeout(focusTimer);
         clearTimeout(speakTimer);
+        window.removeEventListener('keydown', handleKeyDown);
         if ('speechSynthesis' in window) {
           window.speechSynthesis.cancel();
         }
@@ -333,40 +405,6 @@ export default function Home() {
       const firstInput = document.getElementById('digit-input-0');
       if (firstInput) firstInput.focus();
     }, 50);
-  };
-
-  const handleActivateDevice = async () => {
-    const cleanCode = activationDigits.join('').trim();
-    if (!cleanCode || cleanCode.length !== 6 || !/^\d+$/.test(cleanCode)) {
-      setActivationError("Vui lòng nhập đúng dãy 6 chữ số hiển thị trên loa!");
-      return;
-    }
-    setActivationError(null);
-    setActivating(true);
-    try {
-      const res = await fetch('/api/devices/activate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          code: cleanCode,
-          name: newDeviceName.trim() || undefined
-        })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setShowActivationModal(false);
-        setActivationDigits(['', '', '', '', '', '']);
-        setNewDeviceName('');
-        const cleanMac = (data.mac_address || '').replace(/[:-\s]/g, '').toLowerCase();
-        navigate(`/role?mac=${encodeURIComponent(cleanMac)}`);
-      } else {
-        setActivationError(data.detail || "Mã kích hoạt không đúng hoặc đã hết hạn. Vui lòng kiểm tra lại.");
-      }
-    } catch (err) {
-      setActivationError("Lỗi kết nối khi gửi yêu cầu kích hoạt.");
-    } finally {
-      setActivating(false);
-    }
   };
 
   const handleAdminSubmit = async (e) => {
@@ -882,8 +920,36 @@ export default function Home() {
             padding: '32px',
             maxWidth: '400px',
             width: '90%',
-            border: '1px solid rgba(255,255,255,0.15)'
+            border: '1px solid rgba(255,255,255,0.15)',
+            position: 'relative'
           }}>
+            {/* Close button (phím X hoặc Esc) */}
+            <button
+              onClick={closeActivationModal}
+              type="button"
+              title="Đóng (Nhấn phím X hoặc Esc)"
+              style={{
+                position: 'absolute',
+                top: '16px',
+                right: '16px',
+                background: 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: 'var(--text-secondary)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'; e.currentTarget.style.color = '#ef4444'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'var(--text-secondary)'; }}
+            >
+              <X size={18} />
+            </button>
+
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '20px' }}>
               <div style={{
                 background: 'rgba(16, 185, 129, 0.1)',
@@ -1009,10 +1075,21 @@ export default function Home() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Tên gợi nhớ của loa (Tùy chọn)</label>
                 <input 
+                  id="new-device-name-input"
                   type="text" 
                   placeholder="Ví dụ: Loa phòng khách, Loa cá nhân..."
                   value={newDeviceName}
                   onChange={e => setNewDeviceName(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      if (activationError) {
+                        handleResetForm();
+                      } else {
+                        handleActivateDevice();
+                      }
+                    }
+                  }}
                   disabled={activating}
                   style={{
                     padding: '12px',
@@ -1041,12 +1118,7 @@ export default function Home() {
 
               <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
                 <button 
-                  onClick={() => {
-                    setShowActivationModal(false);
-                    setActivationDigits(['', '', '', '', '', '']);
-                    setNewDeviceName('');
-                    setActivationError(null);
-                  }}
+                  onClick={closeActivationModal}
                   disabled={activating}
                   style={{
                     flex: 1,
